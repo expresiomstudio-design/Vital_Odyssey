@@ -24,4 +24,10 @@ class HabitTypeConverters {
 
     @TypeConverter
     fun toFrequency(value: String): Frequency = Frequency.valueOf(value)
+
+    @TypeConverter
+    fun fromHabitRole(value: HabitRole): String = value.name
+
+    @TypeConverter
+    fun toHabitRole(value: String): HabitRole = HabitRole.valueOf(value)
 }

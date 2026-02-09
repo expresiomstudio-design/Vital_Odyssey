@@ -7,6 +7,7 @@ import androidx.room.PrimaryKey
 enum class HabitType { BOOLEAN, MEASURABLE }
 enum class TargetType { AT_LEAST, AT_MOST }
 enum class Frequency { DAILY, WEEKLY, MONTHLY }
+enum class HabitRole { OFFENSIVE, DEFENSIVE }
 
 @Entity(tableName = "habits_table")
 data class Habit(
@@ -14,6 +15,9 @@ data class Habit(
     val id: Int = 0,
     val name: String,
     val note: String = "",
+
+    // ROL DEL HÁBITO (Ataque o Curación)
+    val role: HabitRole = HabitRole.OFFENSIVE, // Por defecto ataca
 
     // TIPO DE HÁBITO
     val type: HabitType,
