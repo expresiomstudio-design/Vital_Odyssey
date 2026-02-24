@@ -29,4 +29,5 @@ val appModule = module {
     factory { CalculatePlayerStatsUseCase() }
     factory { CalculateBattleTurnUseCase() }
     factory { CalculateBossStatsUseCase() }
+    factory { ProcessBattleResultUseCase(get()) }
 }

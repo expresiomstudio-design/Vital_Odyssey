@@ -16,12 +16,11 @@ class CalculatePlayerStatsUseCase {
 
     // El operador 'invoke' permite llamar a la clase como si fuera una función
     operator fun invoke(level: Int): PlayerStats {
-        val l = level.toDouble()
 
         // Fórmulas matemáticas de progresión exponencial suave (GDD)
-        val maxHp = (1000 + 5 * l + 0.1 * l.pow(2)).toInt()
-        val baseAttack = (100 + 0.5 * l + 0.01 * l.pow(2)).toInt()
-        val baseDefense = (10 + 0.2 * l + 0.003 * l.pow(2)).toInt()
+        val maxHp = 1000 + (10 * level)
+        val baseAttack = (100 + 1.5 * level).toInt()
+        val baseDefense = (10 + 0.5 * level).toInt()
         val xpReq = 50 + (4 * level)
 
         return PlayerStats(
