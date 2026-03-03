@@ -2,6 +2,7 @@ package com.moises.vitalodyssey.data.local
 
 import androidx.room.TypeConverter
 import com.moises.vitalodyssey.domain.model.Frequency
+import com.moises.vitalodyssey.domain.model.HabitRole
 import com.moises.vitalodyssey.domain.model.HabitType
 import com.moises.vitalodyssey.domain.model.TargetType
 
