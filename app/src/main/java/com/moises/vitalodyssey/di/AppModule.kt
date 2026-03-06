@@ -7,9 +7,10 @@ import com.moises.vitalodyssey.domain.usecase.CalculateBattleTurnUseCase
 import com.moises.vitalodyssey.domain.usecase.CalculateBossStatsUseCase
 import com.moises.vitalodyssey.domain.usecase.CalculatePlayerStatsUseCase
 import com.moises.vitalodyssey.domain.usecase.ProcessBattleResultUseCase
-import com.moises.vitalodyssey.presentation.viewmodels.DashboardViewModel // Importación necesaria
+import com.moises.vitalodyssey.presentation.viewmodels.DashboardViewModel
+import com.moises.vitalodyssey.presentation.viewmodels.ProfileViewModel
 import org.koin.android.ext.koin.androidContext
-import org.koin.androidx.viewmodel.dsl.viewModel // Importación necesaria
+import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.dsl.module
 
 val appModule = module {
@@ -35,7 +36,7 @@ val appModule = module {
     factory { CalculateBossStatsUseCase() }
     factory { ProcessBattleResultUseCase(get()) }
 
-    // 5. ViewModels - ¡Aquí está la corrección clave!
+    // 5. ViewModels
     viewModel {
         DashboardViewModel(
             userPrefs = get(),
@@ -43,6 +44,13 @@ val appModule = module {
             calculateBossStats = get(),
             calculateBattleTurn = get(),
             processBattleResult = get()
+        )
+    }
+    
+    viewModel {
+        ProfileViewModel(
+            userPrefs = get(),
+            calculateStats = get()
         )
     }
 }
