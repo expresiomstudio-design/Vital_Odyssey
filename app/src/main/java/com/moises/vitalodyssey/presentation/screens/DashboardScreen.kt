@@ -4,6 +4,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -37,13 +38,16 @@ val StaminaBlue = Color(0xFF00D2FD)
 val CardBg = Color(0xFF1A1C1E)
 
 @Composable
-fun DashboardScreen(viewModel: DashboardViewModel = koinViewModel()) {
+fun DashboardScreen(
+    viewModel: DashboardViewModel = koinViewModel(),
+    onNavigateToProfile: () -> Unit = {}
+) {
     // Observamos el estado real del ViewModel
     val uiState by viewModel.uiState.collectAsState()
 
     Scaffold(
-        topBar = { TopProfileBar(uiState) },
-        bottomBar = { BottomNavBar() },
+        topBar = { TopProfileBar(uiState, onNavigateToProfile) },
+        bottomBar = { BottomNavBar(onNavigateToProfile) },
         containerColor = SurfaceDark
     ) { padding ->
         Column(
@@ -74,13 +78,22 @@ fun DashboardScreen(viewModel: DashboardViewModel = koinViewModel()) {
 }
 
 @Composable
-fun TopProfileBar(state: com.moises.vitalodyssey.presentation.viewmodels.DashboardUiState) {
+fun TopProfileBar(
+    state: com.moises.vitalodyssey.presentation.viewmodels.DashboardUiState,
+    onNavigateToProfile: () -> Unit
+) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Box(modifier = Modifier.size(48.dp).clip(CircleShape).border(2.dp, PrimaryGold, CircleShape)) {
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .clip(CircleShape)
+                .border(2.dp, PrimaryGold, CircleShape)
+                .clickable { onNavigateToProfile() }
+        ) {
             AsyncImage(
                 model = "https://picsum.photos/seed/warrior/200",
                 contentDescription = null,
@@ -102,7 +115,7 @@ fun TopProfileBar(state: com.moises.vitalodyssey.presentation.viewmodels.Dashboa
             }
         }
 
-        IconButton(onClick = { }) {
+        IconButton(onClick = onNavigateToProfile) {
             Icon(Icons.Default.Settings, contentDescription = null, tint = PrimaryGold)
         }
     }
@@ -220,10 +233,10 @@ fun ActionSection(onAttack: () -> Unit) {
 }
 
 @Composable
-fun BottomNavBar() {
+fun BottomNavBar(onNavigateToProfile: () -> Unit) {
     NavigationBar(containerColor = Color(0xFF1E2022).copy(alpha = 0.8f)) {
         NavigationBarItem(icon = { Icon(Icons.Default.List, null) }, label = { Text("Hábitos") }, selected = false, onClick = {})
         NavigationBarItem(icon = { Icon(Icons.Default.PlayArrow, null) }, label = { Text("Combate") }, selected = true, onClick = {})
-        NavigationBarItem(icon = { Icon(Icons.Default.Person, null) }, label = { Text("Perfil") }, selected = false, onClick = {})
+        NavigationBarItem(icon = { Icon(Icons.Default.Person, null) }, label = { Text("Perfil") }, selected = false, onClick = onNavigateToProfile)
     }
 }

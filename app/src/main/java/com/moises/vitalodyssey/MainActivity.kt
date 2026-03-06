@@ -3,18 +3,14 @@ package com.moises.vitalodyssey
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
-import com.moises.vitalodyssey.ui.theme.VitalOdysseyTheme
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 import com.moises.vitalodyssey.presentation.screens.DashboardScreen
+import com.moises.vitalodyssey.presentation.screens.ProfileScreen
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -22,8 +18,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             MaterialTheme {
                 Surface {
-                    // ¡Llamamos a nuestra nueva pantalla!
-                    DashboardScreen()
+                    VitalOdysseyMainScreen()
                 }
             }
         }
@@ -31,17 +26,19 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
+fun VitalOdysseyMainScreen() {
+    val navController = rememberNavController()
 
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    VitalOdysseyTheme {
-        Greeting("Android")
+    NavHost(navController = navController, startDestination = "dashboard") {
+        composable("dashboard") {
+            DashboardScreen(
+                onNavigateToProfile = { navController.navigate("profile") }
+            )
+        }
+        composable("profile") {
+            ProfileScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
     }
 }
