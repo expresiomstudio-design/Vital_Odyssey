@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "265220140546",
+    "project_id": "vital-odyssey",
+    "storage_bucket": "vital-odyssey.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:265220140546:android:7b15ebd623e644b1e1811b",
+        "android_client_info": {
+          "package_name": "com.moises.vitalodyssey"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBLZm3NtjYV3b3QrJzqbb5a_GDZT9xLZkc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

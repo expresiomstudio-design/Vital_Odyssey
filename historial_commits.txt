@@ -1,0 +1,9 @@
+8b74a3f - 2026-03-27 : fix: Correcciones Menores de la Interfaz
+4af9190 - 2026-03-24 : feat: implementacion de mecanica de estamina y cambios generales en la interfaz
+8a4acf1 - 2026-03-06 : feat: implementación de ProfileViewModel y Pantalla de Perfil
+7c80f24 - 2026-03-03 : feat: implementación de DashboardScreen en Jetpack Compose con ViewModel interactivo
+1398916 - 2026-02-27 : feat: arquitectura base compilada y lista para la capa de presentación
+e410b92 - 2026-02-24 : refactor: extraer lógica de progresión a capa de dominio y limpiar código obsoleto
+0fe013d - 2026-02-09 : feamfeat: motor matemático y casos de uso de combate, selector de dificultad y soporte de múltiples curvas matañadir TypeConverter para HabitRole y lógica de ataque del jefe
+96ede9e - 2026-02-05 : feat: implementación persistencia local Room y DataStore
+9f714a1 - 2026-02-02 : Inicio del Proyecto - Creacion de rama Main
