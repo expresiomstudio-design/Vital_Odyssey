@@ -12,7 +12,20 @@
           "package_name": "com.moises.vitalodyssey"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "265220140546-7uk665i4d8kb296u068m32hc0dih3e94.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.moises.vitalodyssey",
+            "certificate_hash": "a5c3c89d46dd50f09f06f5ed494397899770483c"
+          }
+        },
+        {
+          "client_id": "265220140546-3gkhahh58tig4a9j5fjh96dcqcbufgjo.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyBLZm3NtjYV3b3QrJzqbb5a_GDZT9xLZkc"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "265220140546-3gkhahh58tig4a9j5fjh96dcqcbufgjo.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

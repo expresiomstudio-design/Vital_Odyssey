@@ -1,8 +1,11 @@
 package com.moises.vitalodyssey.di
 
 import androidx.room.Room
+import com.google.firebase.auth.FirebaseAuth
 import com.moises.vitalodyssey.data.local.AppDatabase
 import com.moises.vitalodyssey.data.local.UserPreferencesManager
+import com.moises.vitalodyssey.data.remote.AuthRepositoryImpl
+import com.moises.vitalodyssey.domain.repository.AuthRepository
 import com.moises.vitalodyssey.domain.usecase.CalculateBattleTurnUseCase
 import com.moises.vitalodyssey.domain.usecase.CalculateBossStatsUseCase
 import com.moises.vitalodyssey.domain.usecase.CalculatePlayerStatsUseCase
@@ -15,6 +18,10 @@ import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.dsl.module
 
 val appModule = module {
+
+    // 0. Firebase & Remote
+    single { FirebaseAuth.getInstance() }
+    single<AuthRepository> { AuthRepositoryImpl(get()) }
 
     // 1. DataStore
     single { UserPreferencesManager(androidContext()) }
