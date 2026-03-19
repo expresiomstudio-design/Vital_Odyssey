@@ -22,7 +22,8 @@ data class UserPrefs(
     val healthGoalSleep: Float,
     val difficulty: Difficulty,
     val currentStamina: Int,
-    val presenceStreak: Int
+    val presenceStreak: Int,
+    val isLoggedIn: Boolean = false
 )
 
 class UserPreferencesManager(private val context: Context) {
@@ -37,6 +38,7 @@ class UserPreferencesManager(private val context: Context) {
         val DIFFICULTY = stringPreferencesKey("difficulty")
         val CURRENT_STAMINA = intPreferencesKey("current_stamina")
         val PRESENCE_STREAK = intPreferencesKey("presence_streak")
+        val IS_LOGGED_IN = booleanPreferencesKey("is_logged_in")
     }
 
     val userPrefsFlow: Flow<UserPrefs> = context.dataStore.data
@@ -56,13 +58,35 @@ class UserPreferencesManager(private val context: Context) {
             val healthGoalSleep = preferences[PreferencesKeys.HEALTH_GOAL_SLEEP] ?: 7.5f
 
             val difficultyStr = preferences[PreferencesKeys.DIFFICULTY] ?: Difficulty.NORMAL.name
-            val difficulty = Difficulty.valueOf(difficultyStr)
+            val difficulty = try {
+                Difficulty.valueOf(difficultyStr)
+            } catch (e: IllegalArgumentException) {
+                Difficulty.NORMAL
+            }
             
             val currentStamina = preferences[PreferencesKeys.CURRENT_STAMINA] ?: 100
             val presenceStreak = preferences[PreferencesKeys.PRESENCE_STREAK] ?: 0
+            val isLoggedIn = preferences[PreferencesKeys.IS_LOGGED_IN] ?: false
 
-            UserPrefs(level, currentXp, currentHp, cutoffTime, healthGoalSteps, healthGoalSleep, difficulty, currentStamina, presenceStreak)
+            UserPrefs(
+                level = level,
+                currentXp = currentXp,
+                currentHp = currentHp,
+                cutoffTime = cutoffTime,
+                healthGoalSteps = healthGoalSteps,
+                healthGoalSleep = healthGoalSleep,
+                difficulty = difficulty,
+                currentStamina = currentStamina,
+                presenceStreak = presenceStreak,
+                isLoggedIn = isLoggedIn
+            )
         }
+
+    suspend fun updateAuthStatus(isLoggedIn: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[PreferencesKeys.IS_LOGGED_IN] = isLoggedIn
+        }
+    }
 
     suspend fun updateLevelAndXp(level: Int, xp: Int) {
         context.dataStore.edit { preferences ->
