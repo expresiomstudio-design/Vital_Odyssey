@@ -8,17 +8,21 @@ import androidx.compose.runtime.Composable
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.moises.vitalodyssey.presentation.screens.DashboardScreen
-import com.moises.vitalodyssey.presentation.screens.HabitsScreen
-import com.moises.vitalodyssey.presentation.screens.ProfileScreen
-import com.moises.vitalodyssey.ui.theme.VitalOdysseyTheme
 import androidx.compose.ui.tooling.preview.Preview
-
 import androidx.compose.ui.platform.LocalContext
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.context.GlobalContext
 import org.koin.core.context.startKoin
 import com.moises.vitalodyssey.di.appModule
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import com.moises.vitalodyssey.data.local.UserPreferencesManager
+import com.moises.vitalodyssey.presentation.screens.DashboardScreen
+import com.moises.vitalodyssey.presentation.screens.HabitsScreen
+import com.moises.vitalodyssey.presentation.screens.LoginScreen
+import com.moises.vitalodyssey.presentation.screens.ProfileScreen
+import com.moises.vitalodyssey.ui.theme.VitalOdysseyTheme
+import org.koin.compose.koinInject
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -34,10 +38,29 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun VitalOdysseyMainScreen() {
+fun VitalOdysseyMainScreen(
+    userPrefs: UserPreferencesManager = koinInject()
+) {
+    val userPrefsState by userPrefs.userPrefsFlow.collectAsState(initial = null)
     val navController = rememberNavController()
 
-    NavHost(navController = navController, startDestination = "dashboard") {
+    if (userPrefsState == null) {
+        // Pantalla de carga o Box vacío mientras se recuperan las preferencias
+        return
+    }
+
+    val startDestination = if (userPrefsState?.isLoggedIn == true) "dashboard" else "login"
+
+    NavHost(navController = navController, startDestination = startDestination) {
+        composable("login") {
+            LoginScreen(
+                onLoginSuccess = {
+                    navController.navigate("dashboard") {
+                        popUpTo("login") { inclusive = true }
+                    }
+                }
+            )
+        }
         composable("dashboard") {
             DashboardScreen(
                 onNavigateToHabits = { navController.navigate("habits") },

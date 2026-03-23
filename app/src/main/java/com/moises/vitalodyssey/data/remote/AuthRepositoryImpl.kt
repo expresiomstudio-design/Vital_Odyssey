@@ -23,6 +23,19 @@ class AuthRepositoryImpl(
         }
     }
 
+    override suspend fun registerWithEmail(email: String, pass: String): AuthResult {
+        return try {
+            val result = firebaseAuth.createUserWithEmailAndPassword(email, pass).await()
+            if (result.user != null) {
+                AuthResult(isSuccess = true)
+            } else {
+                AuthResult(isSuccess = false, errorMessage = "Error al registrar usuario")
+            }
+        } catch (e: Exception) {
+            AuthResult(isSuccess = false, errorMessage = e.localizedMessage)
+        }
+    }
+
     override suspend fun loginWithGoogle(idToken: String): AuthResult {
         return try {
             val credential = GoogleAuthProvider.getCredential(idToken, null)

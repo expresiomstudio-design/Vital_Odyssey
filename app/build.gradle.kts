@@ -74,6 +74,9 @@ dependencies {
 
     implementation(libs.retrofit)
     implementation(libs.converter.gson)
+    implementation(libs.androidx.credentials)
+    implementation(libs.androidx.credentials.play.services.auth)
+    implementation(libs.googleid)
     implementation("androidx.datastore:datastore-preferences:1.1.1")
     implementation("io.insert-koin:koin-androidx-compose:3.5.3")
     implementation("androidx.compose.material:material-icons-extended:1.7.7")

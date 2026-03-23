@@ -13,6 +13,7 @@ import com.moises.vitalodyssey.domain.usecase.ProcessBattleResultUseCase
 import com.moises.vitalodyssey.presentation.viewmodels.DashboardViewModel
 import com.moises.vitalodyssey.presentation.viewmodels.ProfileViewModel
 import com.moises.vitalodyssey.presentation.viewmodels.HabitsViewModel
+import com.moises.vitalodyssey.presentation.viewmodels.AuthViewModel
 import org.koin.android.ext.koin.androidContext
 import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.dsl.module
@@ -65,6 +66,13 @@ val appModule = module {
     viewModel {
         HabitsViewModel(
             habitDao = get()
+        )
+    }
+
+    viewModel {
+        AuthViewModel(
+            authRepository = get(),
+            userPrefs = get()
         )
     }
 }
