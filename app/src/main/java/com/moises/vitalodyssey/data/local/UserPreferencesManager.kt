@@ -9,12 +9,10 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 import java.io.IOException
 
-// 1. Añadimos el Enum de Dificultad
 enum class Difficulty { EASY, NORMAL, HARD }
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "vital_odyssey_prefs")
 
-// 2. Añadimos la dificultad a nuestro modelo de estado
 data class UserPrefs(
     val level: Int,
     val currentXp: Int,
@@ -22,7 +20,9 @@ data class UserPrefs(
     val cutoffTime: String,
     val healthGoalSteps: Int,
     val healthGoalSleep: Float,
-    val difficulty: Difficulty
+    val difficulty: Difficulty,
+    val currentStamina: Int,
+    val presenceStreak: Int
 )
 
 class UserPreferencesManager(private val context: Context) {
@@ -34,8 +34,9 @@ class UserPreferencesManager(private val context: Context) {
         val CUTOFF_TIME = stringPreferencesKey("cutoff_time")
         val HEALTH_GOAL_STEPS = intPreferencesKey("health_goal_steps")
         val HEALTH_GOAL_SLEEP = floatPreferencesKey("health_goal_sleep")
-        // 3. Nueva llave para la dificultad
         val DIFFICULTY = stringPreferencesKey("difficulty")
+        val CURRENT_STAMINA = intPreferencesKey("current_stamina")
+        val PRESENCE_STREAK = intPreferencesKey("presence_streak")
     }
 
     val userPrefsFlow: Flow<UserPrefs> = context.dataStore.data
@@ -54,11 +55,13 @@ class UserPreferencesManager(private val context: Context) {
             val healthGoalSteps = preferences[PreferencesKeys.HEALTH_GOAL_STEPS] ?: 8000
             val healthGoalSleep = preferences[PreferencesKeys.HEALTH_GOAL_SLEEP] ?: 7.5f
 
-            // 4. Leemos la dificultad (Por defecto será NORMAL)
             val difficultyStr = preferences[PreferencesKeys.DIFFICULTY] ?: Difficulty.NORMAL.name
             val difficulty = Difficulty.valueOf(difficultyStr)
+            
+            val currentStamina = preferences[PreferencesKeys.CURRENT_STAMINA] ?: 100
+            val presenceStreak = preferences[PreferencesKeys.PRESENCE_STREAK] ?: 0
 
-            UserPrefs(level, currentXp, currentHp, cutoffTime, healthGoalSteps, healthGoalSleep, difficulty)
+            UserPrefs(level, currentXp, currentHp, cutoffTime, healthGoalSteps, healthGoalSleep, difficulty, currentStamina, presenceStreak)
         }
 
     // --- FUNCIONES DE ACTUALIZACIÓN ---
@@ -89,10 +92,21 @@ class UserPreferencesManager(private val context: Context) {
         }
     }
 
-    // 5. Función para que el usuario cambie la dificultad desde la pestaña de Perfil
     suspend fun updateDifficulty(difficulty: Difficulty) {
         context.dataStore.edit { preferences ->
             preferences[PreferencesKeys.DIFFICULTY] = difficulty.name
+        }
+    }
+
+    suspend fun updateStamina(stamina: Int) {
+        context.dataStore.edit { preferences ->
+            preferences[PreferencesKeys.CURRENT_STAMINA] = stamina.coerceIn(0, 100)
+        }
+    }
+
+    suspend fun updatePresenceStreak(streak: Int) {
+        context.dataStore.edit { preferences ->
+            preferences[PreferencesKeys.PRESENCE_STREAK] = streak
         }
     }
 }

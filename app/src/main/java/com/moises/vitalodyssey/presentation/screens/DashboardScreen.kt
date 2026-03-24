@@ -11,6 +11,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -19,36 +20,44 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.moises.vitalodyssey.presentation.viewmodels.DashboardUiState
 import com.moises.vitalodyssey.presentation.viewmodels.DashboardViewModel
+import com.moises.vitalodyssey.ui.theme.OdysseyTheme
 import org.koin.androidx.compose.koinViewModel
-
-// Paleta de Colores "Digital Relic" de tu prototipo
-val SurfaceDark = Color(0xFF121416)
-val PrimaryGold = Color(0xFFFEB300)
-val SecondaryGold = Color(0xFFFFD799)
-val HealthRed = Color(0xFFFFB4AB)
-val StaminaBlue = Color(0xFF00D2FD)
-val CardBg = Color(0xFF1A1C1E)
 
 @Composable
 fun DashboardScreen(
     viewModel: DashboardViewModel = koinViewModel(),
+    onNavigateToHabits: () -> Unit = {},
     onNavigateToProfile: () -> Unit = {}
 ) {
-    // Observamos el estado real del ViewModel
     val uiState by viewModel.uiState.collectAsState()
 
+    DashboardScreenContent(
+        uiState = uiState,
+        onSimulateAttack = { viewModel.simulateAttack() },
+        onNavigateToHabits = onNavigateToHabits,
+        onNavigateToProfile = onNavigateToProfile
+    )
+}
+
+@Composable
+fun DashboardScreenContent(
+    uiState: DashboardUiState,
+    onSimulateAttack: () -> Unit,
+    onNavigateToHabits: () -> Unit,
+    onNavigateToProfile: () -> Unit
+) {
     Scaffold(
         topBar = { TopProfileBar(uiState, onNavigateToProfile) },
-        bottomBar = { BottomNavBar(onNavigateToProfile) },
-        containerColor = SurfaceDark
+        bottomBar = { BottomNavBar(onNavigateToHabits, onNavigateToProfile) },
+        containerColor = MaterialTheme.colorScheme.surface
     ) { padding ->
         Column(
             modifier = Modifier
@@ -56,30 +65,26 @@ fun DashboardScreen(
                 .padding(padding)
                 .padding(horizontal = 16.dp)
                 .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Sección de Barras de Estado (Vida y Energía/XP)
             StatusBarsSection(uiState)
 
-            // Sección de Atributos (Ataque/Defensa reales)
             AttributesRow(uiState)
 
-            // Tarjeta del Jefe con narrativa
             BossEncounterCard(uiState.combatLog)
 
-            // Sección de Acción (Botón de ataque conectado)
-            ActionSection { viewModel.simulateAttack() }
+            ActionSection(uiState) { onSimulateAttack() }
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }
 
 @Composable
 fun TopProfileBar(
-    state: com.moises.vitalodyssey.presentation.viewmodels.DashboardUiState,
+    state: DashboardUiState,
     onNavigateToProfile: () -> Unit
 ) {
     Row(
@@ -91,7 +96,7 @@ fun TopProfileBar(
             modifier = Modifier
                 .size(48.dp)
                 .clip(CircleShape)
-                .border(2.dp, PrimaryGold, CircleShape)
+                .border(2.dp, MaterialTheme.colorScheme.primaryContainer, CircleShape)
                 .clickable { onNavigateToProfile() }
         ) {
             AsyncImage(
@@ -102,89 +107,134 @@ fun TopProfileBar(
         }
 
         Column(modifier = Modifier.weight(1f)) {
-            Text("Moisés Sánchez", color = PrimaryGold, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+            Text(
+                "Moisés Sánchez", 
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.primaryContainer
+            )
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("NIVEL ${state.level}", color = PrimaryGold.copy(alpha = 0.7f), fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                LinearProgressIndicator(
-                    progress = state.visualXpPercent,
-                    modifier = Modifier.weight(1f).height(6.dp).clip(CircleShape),
-                    color = PrimaryGold,
-                    trackColor = PrimaryGold.copy(alpha = 0.2f)
+                Text(
+                    "NIVEL ${state.level}", 
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f)
                 )
-                Text(state.xpText, color = PrimaryGold.copy(alpha = 0.7f), fontSize = 10.sp)
+                LinearProgressIndicator(
+                    progress = { state.visualXpPercent },
+                    modifier = Modifier.weight(1f).height(6.dp).clip(CircleShape),
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    trackColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f)
+                )
+                Text(
+                    state.xpText, 
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f)
+                )
             }
         }
 
         IconButton(onClick = onNavigateToProfile) {
-            Icon(Icons.Default.Settings, contentDescription = null, tint = PrimaryGold)
+            Icon(Icons.Default.Settings, contentDescription = null, tint = MaterialTheme.colorScheme.primaryContainer)
         }
     }
 }
 
 @Composable
-fun StatusBarsSection(state: com.moises.vitalodyssey.presentation.viewmodels.DashboardUiState) {
+fun StatusBarsSection(state: DashboardUiState) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         StatusBar(
             label = "VIDA",
             valueText = state.hpText,
             progress = state.visualHpPercent,
-            color = if (state.visualHpPercent > 0.25f) HealthRed else Color.Red,
+            color = MaterialTheme.colorScheme.error,
             icon = Icons.Default.Favorite
         )
         StatusBar(
-            label = "EXPERIENCIA",
-            valueText = state.xpText,
-            progress = state.visualXpPercent,
-            color = StaminaBlue,
-            icon = Icons.Default.Star
+            label = "ESTAMINA",
+            valueText = "${state.currentStamina}%",
+            progress = state.currentStamina / 100f,
+            color = MaterialTheme.colorScheme.tertiaryContainer,
+            icon = Icons.Default.Bolt
         )
     }
 }
 
 @Composable
-fun StatusBar(label: String, valueText: String, progress: Float, color: Color, icon: androidx.compose.ui.graphics.vector.ImageVector) {
-    val animatedProgress by animateFloatAsState(targetValue = progress, animationSpec = tween(800))
+fun StatusBar(label: String, valueText: String, progress: Float, color: androidx.compose.ui.graphics.Color, icon: androidx.compose.ui.graphics.vector.ImageVector) {
+    val animatedProgress by animateFloatAsState(targetValue = progress, animationSpec = tween(800), label = "StatusBarProgress")
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(14.dp))
-                Text(label, color = Color.Gray, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                Text(
+                    label, 
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                )
             }
-            Text(valueText, color = color, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Text(
+                valueText, 
+                style = MaterialTheme.typography.bodySmall,
+                color = color
+            )
         }
         LinearProgressIndicator(
-            progress = animatedProgress,
+            progress = { animatedProgress },
             modifier = Modifier.fillMaxWidth().height(12.dp).clip(CircleShape),
             color = color,
-            trackColor = Color(0xFF333537)
+            trackColor = MaterialTheme.colorScheme.surfaceVariant
         )
     }
 }
 
 @Composable
-fun AttributesRow(state: com.moises.vitalodyssey.presentation.viewmodels.DashboardUiState) {
+fun AttributesRow(state: DashboardUiState) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-        AttributeCard(Modifier.weight(1f), "ATAQUE", state.attackStat.toString(), SecondaryGold, Icons.Default.FlashOn)
-        AttributeCard(Modifier.weight(1f), "DEFENSA", state.defenseStat.toString(), Color(0xFFEBC07D), Icons.Default.Security)
+        AttributeCard(
+            Modifier.weight(1f), 
+            "ATAQUE", 
+            state.attackStat.toString(), 
+            MaterialTheme.colorScheme.primary, 
+            Icons.Default.FlashOn
+        )
+        AttributeCard(
+            Modifier.weight(1f), 
+            "DEFENSA", 
+            state.defenseStat.toString(), 
+            MaterialTheme.colorScheme.secondary, 
+            Icons.Default.Security
+        )
     }
 }
 
 @Composable
-fun AttributeCard(modifier: Modifier, label: String, value: String, color: Color, icon: androidx.compose.ui.graphics.vector.ImageVector) {
+fun AttributeCard(modifier: Modifier, label: String, value: String, color: androidx.compose.ui.graphics.Color, icon: androidx.compose.ui.graphics.vector.ImageVector) {
     Row(
         modifier = modifier
-            .background(CardBg, RoundedCornerShape(12.dp))
-            .border(1.dp, Color(0xFF514532).copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Box(modifier = Modifier.size(40.dp).background(Color(0xFF1E2022), RoundedCornerShape(8.dp)), contentAlignment = Alignment.Center) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(8.dp)), 
+            contentAlignment = Alignment.Center
+        ) {
             Icon(icon, contentDescription = null, tint = color)
         }
         Column {
-            Text(label, color = Color.Gray, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-            Text(value, color = color, fontSize = 20.sp, fontWeight = FontWeight.Black)
+            Text(
+                label, 
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+            )
+            Text(
+                value, 
+                style = MaterialTheme.typography.headlineMedium,
+                color = color
+            )
         }
     }
 }
@@ -193,7 +243,8 @@ fun AttributeCard(modifier: Modifier, label: String, value: String, color: Color
 fun BossEncounterCard(logText: String) {
     Box(
         modifier = Modifier.fillMaxWidth().aspectRatio(0.8f).clip(RoundedCornerShape(32.dp))
-            .border(1.dp, PrimaryGold.copy(alpha = 0.3f), RoundedCornerShape(32.dp)).background(Color(0xFF1E2022))
+            .border(1.dp, MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f), RoundedCornerShape(32.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
     ) {
         AsyncImage(
             model = "https://picsum.photos/seed/titan/800/1200",
@@ -202,41 +253,117 @@ fun BossEncounterCard(logText: String) {
             contentScale = ContentScale.Crop
         )
         Column(modifier = Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Surface(color = Color(0xFF93000A), shape = CircleShape) {
-                Text("JEFE ELITE", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp))
+            Surface(color = MaterialTheme.colorScheme.error, shape = CircleShape) {
+                Text(
+                    "JEFE ELITE", 
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+                )
             }
             Spacer(modifier = Modifier.height(8.dp))
-            Text("TITAN PROCRASTINADOR", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
-            Text(logText, color = Color.White.copy(alpha = 0.8f), fontSize = 14.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(vertical = 8.dp))
+            Text(
+                "TITAN PROCRASTINADOR", 
+                style = MaterialTheme.typography.headlineMedium, 
+                color = MaterialTheme.colorScheme.onSurface, 
+                textAlign = TextAlign.Center
+            )
+            Text(
+                logText, 
+                style = MaterialTheme.typography.bodyMedium, 
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f), 
+                textAlign = TextAlign.Center, 
+                modifier = Modifier.padding(vertical = 8.dp)
+            )
         }
     }
 }
 
 @Composable
-fun ActionSection(onAttack: () -> Unit) {
+fun ActionSection(state: DashboardUiState, onAttack: () -> Unit) {
+    val isEnabled = state.currentStamina >= 33
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Button(
             onClick = onAttack,
+            enabled = isEnabled,
             modifier = Modifier.fillMaxWidth().height(64.dp),
             shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = androidx.compose.ui.graphics.Color.Transparent,
+                disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant
+            ),
             contentPadding = PaddingValues()
         ) {
             Box(
-                modifier = Modifier.fillMaxSize().background(Brush.linearGradient(listOf(SecondaryGold, PrimaryGold))),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        if (isEnabled) {
+                            Brush.linearGradient(
+                                listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primaryContainer)
+                            )
+                        } else {
+                            Brush.linearGradient(
+                                listOf(MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.surfaceVariant)
+                            )
+                        }
+                    ),
                 contentAlignment = Alignment.Center
             ) {
-                Text("ATACAR", color = Color(0xFF432C00), fontSize = 20.sp, fontWeight = FontWeight.Black, letterSpacing = 4.sp)
+                Text(
+                    if (isEnabled) "ATACAR" else "SIN ESTAMINA",
+                    style = MaterialTheme.typography.headlineMedium, 
+                    color = if (isEnabled) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface.copy(alpha=0.3f), 
+                    letterSpacing = 2.sp
+                )
             }
         }
     }
 }
 
 @Composable
-fun BottomNavBar(onNavigateToProfile: () -> Unit) {
-    NavigationBar(containerColor = Color(0xFF1E2022).copy(alpha = 0.8f)) {
-        NavigationBarItem(icon = { Icon(Icons.Default.List, null) }, label = { Text("Hábitos") }, selected = false, onClick = {})
-        NavigationBarItem(icon = { Icon(Icons.Default.PlayArrow, null) }, label = { Text("Combate") }, selected = true, onClick = {})
-        NavigationBarItem(icon = { Icon(Icons.Default.Person, null) }, label = { Text("Perfil") }, selected = false, onClick = onNavigateToProfile)
+fun BottomNavBar(onNavigateToHabits: () -> Unit, onNavigateToProfile: () -> Unit) {
+    NavigationBar(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)) {
+        NavigationBarItem(
+            icon = { Icon(Icons.AutoMirrored.Filled.List, null) }, 
+            label = { Text("Hábitos", style = MaterialTheme.typography.labelSmall) }, 
+            selected = false, 
+            onClick = onNavigateToHabits
+        )
+        NavigationBarItem(
+            icon = { Icon(Icons.Default.PlayArrow, null) }, 
+            label = { Text("Combate", style = MaterialTheme.typography.labelSmall) }, 
+            selected = true, 
+            onClick = {}
+        )
+        NavigationBarItem(
+            icon = { Icon(Icons.Default.Person, null) }, 
+            label = { Text("Perfil", style = MaterialTheme.typography.labelSmall) }, 
+            selected = false, 
+            onClick = onNavigateToProfile
+        )
+    }
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF121416)
+@Composable
+fun DashboardScreenPreview() {
+    OdysseyTheme(darkTheme = true) {
+        DashboardScreenContent(
+            uiState = DashboardUiState(
+                level = 10,
+                hpText = "1200 / 1200 HP",
+                visualHpPercent = 1f,
+                xpText = "450 / 1000 XP",
+                visualXpPercent = 0.45f,
+                currentStamina = 67,
+                attackStat = 150,
+                defenseStat = 80,
+                combatLog = "El dragón ruge ferozmente."
+            ),
+            onSimulateAttack = {},
+            onNavigateToHabits = {},
+            onNavigateToProfile = {}
+        )
     }
 }

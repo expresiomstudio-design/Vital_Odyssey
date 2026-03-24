@@ -9,6 +9,7 @@ import com.moises.vitalodyssey.domain.usecase.CalculatePlayerStatsUseCase
 import com.moises.vitalodyssey.domain.usecase.ProcessBattleResultUseCase
 import com.moises.vitalodyssey.presentation.viewmodels.DashboardViewModel
 import com.moises.vitalodyssey.presentation.viewmodels.ProfileViewModel
+import com.moises.vitalodyssey.presentation.viewmodels.HabitsViewModel
 import org.koin.android.ext.koin.androidContext
 import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.dsl.module
@@ -51,6 +52,12 @@ val appModule = module {
         ProfileViewModel(
             userPrefs = get(),
             calculateStats = get()
+        )
+    }
+
+    viewModel {
+        HabitsViewModel(
+            habitDao = get()
         )
     }
 }

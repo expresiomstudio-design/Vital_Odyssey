@@ -54,6 +54,9 @@ class CalculateBattleTurnUseCase {
             xpEarned += 30
         }
 
+        // Reducir a la mitad la XP obtenida por cada ataque (Balance de Estamina)
+        xpEarned /= 2
+
         return BattleResult(
             damageDealtToBoss = damageDealt,
             damageReceivedFromBoss = damageReceived,

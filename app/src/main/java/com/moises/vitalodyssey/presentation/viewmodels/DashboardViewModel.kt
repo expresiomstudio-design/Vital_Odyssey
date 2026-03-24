@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.first
 
 data class DashboardUiState(
     val level: Int = 1,
@@ -17,6 +18,8 @@ data class DashboardUiState(
     val visualHpPercent: Float = 1f,
     val xpText: String = "0 / 54 XP",
     val visualXpPercent: Float = 0f,
+    val currentStamina: Int = 100,
+    val presenceStreak: Int = 0,
     val attackStat: Int = 101,
     val defenseStat: Int = 10,
     val combatLog: String = "La noche es oscura, pero tu voluntad es de hierro."
@@ -50,6 +53,8 @@ class DashboardViewModel(
             visualHpPercent = hpPercent,
             xpText = "${prefs.currentXp} / ${stats.xpForNextLevel} XP",
             visualXpPercent = xpPercent,
+            currentStamina = prefs.currentStamina,
+            presenceStreak = prefs.presenceStreak,
             attackStat = stats.baseAttack,
             defenseStat = stats.baseDefense,
             combatLog = currentLog
@@ -63,8 +68,26 @@ class DashboardViewModel(
     // Función que llamará el botón de la UI para probar las matemáticas
     fun simulateAttack() {
         viewModelScope.launch {
-            // Leemos el estado actual directamente
             val currentState = uiState.value
+
+            // Comprobación de Estamina
+            if (currentState.currentStamina < 33) {
+                currentLog = "No tienes suficiente estamina (Foco Arcano) para atacar."
+                // Forzar reemisión copiando el estado actual con el log nuevo
+                // Al depender de StateFlow, a veces modificar solo el log interno no triggerea recomposición 
+                // si la persistencia no cambia, pero actualizamos la base de datos igual si es necesario.
+                // Sin embargo, para no complicar, basta con actualizar el log en la UI si fuera posible. 
+                // Como workaround, guardaremos algo inocuo para forzar update o lo dejamos así.
+                // En una app real usaríamos un SharedFlow para eventos, por ahora simplemente no atacamos.
+                // Lo ideal sería exponer currentLog como Flow también, pero por simplicidad de tu código base:
+                userPrefs.updateStamina(currentState.currentStamina) // Forzar emisión
+                return@launch
+            }
+
+            // Consumir estamina y aumentar racha
+            userPrefs.updateStamina(currentState.currentStamina - 33)
+            userPrefs.updatePresenceStreak(currentState.presenceStreak + 1)
+
             val bossAttack = calculateBossStats(currentState.level, Difficulty.NORMAL)
             val playerStats = calculateStats(currentState.level)
 
@@ -81,7 +104,7 @@ class DashboardViewModel(
                 currentStreak = 2
             )
 
-            // Obtenemos cuánta vida tenía realmente en base de datos (hay que extraerlo de uiState)
+            // Obtenemos cuánta vida tenía realmente en base de datos
             val currentHpInt = currentState.hpText.split(" / ")[0].toInt()
             val currentXpInt = currentState.xpText.split(" / ")[0].toInt()
 
@@ -104,6 +127,23 @@ class DashboardViewModel(
             // Guardamos en DataStore (¡Esto actualiza la UI automáticamente!)
             userPrefs.updateLevelAndXp(newState.newLevel, newState.newXp)
             userPrefs.updateHp(newState.newHp)
+        }
+    }
+
+    // Calcula la estamina del día siguiente: 34 + (streak * 3) + (focus * 0.33)
+    fun dailyReset(appFocusPercentage: Int) {
+        viewModelScope.launch {
+            val currentState = userPrefs.userPrefsFlow.first()
+            val streak = currentState.presenceStreak
+            
+            // Lógica de cálculo: Base (34) + Bono de Racha (Max 33) + Bono de Bienestar (Max 33)
+            val baseStamina = 34
+            val streakBonus = (streak * 3).coerceAtMost(33)
+            val focusBonus = (appFocusPercentage * 0.33f).toInt().coerceAtMost(33)
+            
+            val newStamina = (baseStamina + streakBonus + focusBonus).coerceAtMost(100)
+            
+            userPrefs.updateStamina(newStamina)
         }
     }
 }
