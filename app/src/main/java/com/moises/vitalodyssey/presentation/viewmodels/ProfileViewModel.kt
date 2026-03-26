@@ -3,11 +3,13 @@ package com.moises.vitalodyssey.presentation.viewmodels
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.moises.vitalodyssey.data.local.UserPreferencesManager
+import com.moises.vitalodyssey.domain.repository.AuthRepository
 import com.moises.vitalodyssey.domain.usecase.CalculatePlayerStatsUseCase
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
 data class ProfileUiState(
     val level: Int = 1,
@@ -22,7 +24,8 @@ data class ProfileUiState(
 
 class ProfileViewModel(
     private val userPrefs: UserPreferencesManager,
-    private val calculateStats: CalculatePlayerStatsUseCase
+    private val calculateStats: CalculatePlayerStatsUseCase,
+    private val authRepository: AuthRepository
 ) : ViewModel() {
 
     val uiState: StateFlow<ProfileUiState> = userPrefs.userPrefsFlow.map { prefs ->
@@ -41,4 +44,11 @@ class ProfileViewModel(
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = ProfileUiState()
     )
+
+    fun logout() {
+        viewModelScope.launch {
+            authRepository.logout()
+            userPrefs.updateAuthStatus(false)
+        }
+    }
 }

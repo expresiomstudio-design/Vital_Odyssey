@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material.icons.filled.Security
@@ -41,7 +42,8 @@ fun ProfileScreen(
 
     ProfileScreenContent(
         uiState = uiState,
-        onNavigateBack = onNavigateBack
+        onNavigateBack = onNavigateBack,
+        onLogout = { viewModel.logout() }
     )
 }
 
@@ -49,7 +51,8 @@ fun ProfileScreen(
 @Composable
 fun ProfileScreenContent(
     uiState: ProfileUiState,
-    onNavigateBack: () -> Unit = {}
+    onNavigateBack: () -> Unit = {},
+    onLogout: () -> Unit = {}
 ) {
     Scaffold(
         topBar = {
@@ -66,6 +69,15 @@ fun ProfileScreenContent(
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack, 
                             contentDescription = "Volver", 
+                            tint = MaterialTheme.colorScheme.primaryContainer
+                        )
+                    }
+                },
+                actions = {
+                    IconButton(onClick = onLogout) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.ExitToApp,
+                            contentDescription = "Cerrar Sesión",
                             tint = MaterialTheme.colorScheme.primaryContainer
                         )
                     }
@@ -243,7 +255,9 @@ fun ProfileScreenPreview() {
                 attackStat = 150,
                 defenseStat = 80,
                 hpText = "1200/1200"
-            )
+            ),
+            onNavigateBack = {},
+            onLogout = {}
         )
     }
 }

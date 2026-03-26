@@ -59,7 +59,8 @@ val appModule = module {
     viewModel {
         ProfileViewModel(
             userPrefs = get(),
-            calculateStats = get()
+            calculateStats = get(),
+            authRepository = get()
         )
     }
 
