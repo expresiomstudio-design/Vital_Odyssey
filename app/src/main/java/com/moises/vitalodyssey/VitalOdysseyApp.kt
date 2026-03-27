@@ -9,7 +9,6 @@ class VitalOdysseyApp : Application() {
     override fun onCreate() {
         super.onCreate()
 
-        // ¡Encendemos Koin!
         startKoin {
             androidContext(this@VitalOdysseyApp)
             modules(appModule)

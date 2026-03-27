@@ -64,8 +64,6 @@ class UserPreferencesManager(private val context: Context) {
             UserPrefs(level, currentXp, currentHp, cutoffTime, healthGoalSteps, healthGoalSleep, difficulty, currentStamina, presenceStreak)
         }
 
-    // --- FUNCIONES DE ACTUALIZACIÓN ---
-
     suspend fun updateLevelAndXp(level: Int, xp: Int) {
         context.dataStore.edit { preferences ->
             preferences[PreferencesKeys.LEVEL] = level

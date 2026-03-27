@@ -112,7 +112,7 @@ fun HabitsScreenContent(
                         color = MaterialTheme.colorScheme.primaryContainer
                     )
                     IconButton(
-                        onClick = { /* TODO: Navigate to Add Habit */ },
+                        onClick = { },
                         colors = IconButtonDefaults.filledIconButtonColors(MaterialTheme.colorScheme.primaryContainer)
                     ) {
                         Icon(Icons.Default.Add, contentDescription = "Add Habit", tint = MaterialTheme.colorScheme.surface)

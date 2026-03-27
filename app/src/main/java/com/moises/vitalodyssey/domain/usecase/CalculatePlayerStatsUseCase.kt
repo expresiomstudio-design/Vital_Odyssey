@@ -2,7 +2,6 @@ package com.moises.vitalodyssey.domain.usecase
 
 import kotlin.math.pow
 
-// Un modelo puro de Kotlin para transportar los datos a la interfaz
 data class PlayerStats(
     val level: Int,
     val maxHp: Int,
@@ -14,10 +13,7 @@ data class PlayerStats(
 
 class CalculatePlayerStatsUseCase {
 
-    // El operador 'invoke' permite llamar a la clase como si fuera una función
     operator fun invoke(level: Int): PlayerStats {
-
-        // Fórmulas matemáticas de progresión exponencial suave (GDD)
         val maxHp = 1000 + (10 * level)
         val baseAttack = (100 + 1.5 * level).toInt()
         val baseDefense = (10 + 0.5 * level).toInt()
@@ -26,7 +22,7 @@ class CalculatePlayerStatsUseCase {
         return PlayerStats(
             level = level,
             maxHp = maxHp,
-            faintHp = maxHp / 2, // Límite exacto del 50%
+            faintHp = maxHp / 2,
             baseAttack = baseAttack,
             baseDefense = baseDefense,
             xpForNextLevel = xpReq
