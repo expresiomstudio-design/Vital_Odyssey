@@ -33,7 +33,6 @@ class DashboardViewModel(
     private val processBattleResult: ProcessBattleResultUseCase
 ) : ViewModel() {
 
-    // Variable temporal para el texto de la batalla
     private var currentLog = "La noche es oscura, pero tu voluntad es de hierro."
 
     val uiState: StateFlow<DashboardUiState> = userPrefs.userPrefsFlow.map { prefs ->
@@ -65,33 +64,22 @@ class DashboardViewModel(
         initialValue = DashboardUiState()
     )
 
-    // Función que llamará el botón de la UI para probar las matemáticas
     fun simulateAttack() {
         viewModelScope.launch {
             val currentState = uiState.value
 
-            // Comprobación de Estamina
             if (currentState.currentStamina < 33) {
                 currentLog = "No tienes suficiente estamina (Foco Arcano) para atacar."
-                // Forzar reemisión copiando el estado actual con el log nuevo
-                // Al depender de StateFlow, a veces modificar solo el log interno no triggerea recomposición 
-                // si la persistencia no cambia, pero actualizamos la base de datos igual si es necesario.
-                // Sin embargo, para no complicar, basta con actualizar el log en la UI si fuera posible. 
-                // Como workaround, guardaremos algo inocuo para forzar update o lo dejamos así.
-                // En una app real usaríamos un SharedFlow para eventos, por ahora simplemente no atacamos.
-                // Lo ideal sería exponer currentLog como Flow también, pero por simplicidad de tu código base:
-                userPrefs.updateStamina(currentState.currentStamina) // Forzar emisión
+                userPrefs.updateStamina(currentState.currentStamina)
                 return@launch
             }
 
-            // Consumir estamina y aumentar racha
             userPrefs.updateStamina(currentState.currentStamina - 33)
             userPrefs.updatePresenceStreak(currentState.presenceStreak + 1)
 
             val bossAttack = calculateBossStats(currentState.level, Difficulty.NORMAL)
             val playerStats = calculateStats(currentState.level)
 
-            // Simulamos un jugador al 60% de cumplimiento
             val battleResult = calculateBattleTurn(
                 playerStats = playerStats,
                 bossAttack = bossAttack,
@@ -104,7 +92,6 @@ class DashboardViewModel(
                 currentStreak = 2
             )
 
-            // Obtenemos cuánta vida tenía realmente en base de datos
             val currentHpInt = currentState.hpText.split(" / ")[0].toInt()
             val currentXpInt = currentState.xpText.split(" / ")[0].toInt()
 
@@ -115,7 +102,6 @@ class DashboardViewModel(
                 battleResult = battleResult
             )
 
-            // Actualizamos el texto del log
             currentLog = if (newState.didLevelUp) {
                 "¡NIVEL ${newState.newLevel} ALCANZADO! Tu voluntad se fortalece."
             } else if (newState.isFainted) {
@@ -124,19 +110,16 @@ class DashboardViewModel(
                 "El Jefe ataca (${battleResult.damageReceivedFromBoss} DMG). Te curas ${battleResult.hpHealed} HP."
             }
 
-            // Guardamos en DataStore (¡Esto actualiza la UI automáticamente!)
             userPrefs.updateLevelAndXp(newState.newLevel, newState.newXp)
             userPrefs.updateHp(newState.newHp)
         }
     }
 
-    // Calcula la estamina del día siguiente: 34 + (streak * 3) + (focus * 0.33)
     fun dailyReset(appFocusPercentage: Int) {
         viewModelScope.launch {
             val currentState = userPrefs.userPrefsFlow.first()
             val streak = currentState.presenceStreak
             
-            // Lógica de cálculo: Base (34) + Bono de Racha (Max 33) + Bono de Bienestar (Max 33)
             val baseStamina = 34
             val streakBonus = (streak * 3).coerceAtMost(33)
             val focusBonus = (appFocusPercentage * 0.33f).toInt().coerceAtMost(33)

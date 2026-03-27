@@ -20,13 +20,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 
-// Odyssey Colors
 val Surface = Color(0xFF121416)
 val OnSurface = Color(0xFFE2E2E5)
 val Primary = Color(0xFFFFD799)
 val PrimaryContainer = Color(0xFFFEB300)
 val Secondary = Color(0xFFEBC07D)
-val TertiaryContainer = Color(0xFF80D8FF) // Azul claro para Estamina/Foco
+val TertiaryContainer = Color(0xFF80D8FF)
 val Error = Color(0xFFEA2B14)
 val OutlineVariant = Color(0xFF514532)
 val SurfaceVariant = Color(0xFF1A1C1E)
@@ -121,7 +120,6 @@ fun OdysseyTheme(
     )
 }
 
-// Keep the old name for compatibility but redirecting to the new one
 @Composable
 fun VitalOdysseyTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
