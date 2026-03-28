@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.*
 import androidx.datastore.preferences.preferencesDataStore
+import com.moises.vitalodyssey.domain.model.BodyType
+import com.moises.vitalodyssey.domain.model.PlayerClass
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
@@ -23,7 +25,10 @@ data class UserPrefs(
     val difficulty: Difficulty,
     val currentStamina: Int,
     val presenceStreak: Int,
-    val isLoggedIn: Boolean = false
+    val isLoggedIn: Boolean = false,
+    val bodyType: String = "",
+    val playerClass: String = "",
+    val hasCompletedOnboarding: Boolean = false
 )
 
 class UserPreferencesManager(private val context: Context) {
@@ -39,6 +44,9 @@ class UserPreferencesManager(private val context: Context) {
         val CURRENT_STAMINA = intPreferencesKey("current_stamina")
         val PRESENCE_STREAK = intPreferencesKey("presence_streak")
         val IS_LOGGED_IN = booleanPreferencesKey("is_logged_in")
+        val BODY_TYPE = stringPreferencesKey("body_type")
+        val PLAYER_CLASS = stringPreferencesKey("player_class")
+        val HAS_COMPLETED_ONBOARDING = booleanPreferencesKey("has_completed_onboarding")
     }
 
     val userPrefsFlow: Flow<UserPrefs> = context.dataStore.data
@@ -67,6 +75,9 @@ class UserPreferencesManager(private val context: Context) {
             val currentStamina = preferences[PreferencesKeys.CURRENT_STAMINA] ?: 100
             val presenceStreak = preferences[PreferencesKeys.PRESENCE_STREAK] ?: 0
             val isLoggedIn = preferences[PreferencesKeys.IS_LOGGED_IN] ?: false
+            val bodyType = preferences[PreferencesKeys.BODY_TYPE] ?: ""
+            val playerClass = preferences[PreferencesKeys.PLAYER_CLASS] ?: ""
+            val hasCompletedOnboarding = preferences[PreferencesKeys.HAS_COMPLETED_ONBOARDING] ?: false
 
             UserPrefs(
                 level = level,
@@ -78,7 +89,10 @@ class UserPreferencesManager(private val context: Context) {
                 difficulty = difficulty,
                 currentStamina = currentStamina,
                 presenceStreak = presenceStreak,
-                isLoggedIn = isLoggedIn
+                isLoggedIn = isLoggedIn,
+                bodyType = bodyType,
+                playerClass = playerClass,
+                hasCompletedOnboarding = hasCompletedOnboarding
             )
         }
 
@@ -129,6 +143,14 @@ class UserPreferencesManager(private val context: Context) {
     suspend fun updatePresenceStreak(streak: Int) {
         context.dataStore.edit { preferences ->
             preferences[PreferencesKeys.PRESENCE_STREAK] = streak
+        }
+    }
+
+    suspend fun completeOnboarding(bodyType: BodyType, playerClass: PlayerClass) {
+        context.dataStore.edit { preferences ->
+            preferences[PreferencesKeys.BODY_TYPE] = bodyType.name
+            preferences[PreferencesKeys.PLAYER_CLASS] = playerClass.name
+            preferences[PreferencesKeys.HAS_COMPLETED_ONBOARDING] = true
         }
     }
 }

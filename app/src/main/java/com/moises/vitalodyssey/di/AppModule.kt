@@ -14,6 +14,7 @@ import com.moises.vitalodyssey.presentation.viewmodels.DashboardViewModel
 import com.moises.vitalodyssey.presentation.viewmodels.ProfileViewModel
 import com.moises.vitalodyssey.presentation.viewmodels.HabitsViewModel
 import com.moises.vitalodyssey.presentation.viewmodels.AuthViewModel
+import com.moises.vitalodyssey.presentation.viewmodels.OnboardingViewModel
 import org.koin.android.ext.koin.androidContext
 import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.dsl.module
@@ -73,6 +74,12 @@ val appModule = module {
     viewModel {
         AuthViewModel(
             authRepository = get(),
+            userPrefs = get()
+        )
+    }
+
+    viewModel {
+        OnboardingViewModel(
             userPrefs = get()
         )
     }

@@ -67,7 +67,7 @@ fun DashboardScreenContent(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(0.dp))
 
             StatusBarsSection(uiState)
 
@@ -77,7 +77,7 @@ fun DashboardScreenContent(
 
             ActionSection(uiState) { onSimulateAttack() }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(0.dp))
         }
     }
 }
@@ -140,7 +140,7 @@ fun TopProfileBar(
 
 @Composable
 fun StatusBarsSection(state: DashboardUiState) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         StatusBar(
             label = "VIDA",
             valueText = state.hpText,
@@ -242,14 +242,15 @@ fun AttributeCard(modifier: Modifier, label: String, value: String, color: andro
 @Composable
 fun BossEncounterCard(logText: String) {
     Box(
-        modifier = Modifier.fillMaxWidth().aspectRatio(0.8f).clip(RoundedCornerShape(32.dp))
+        modifier = Modifier.fillMaxWidth().height(400.dp).aspectRatio(0.9f).clip(RoundedCornerShape(32.dp))
             .border(1.dp, MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f), RoundedCornerShape(32.dp))
             .background(MaterialTheme.colorScheme.surfaceVariant)
+
     ) {
         AsyncImage(
             model = "https://picsum.photos/seed/titan/800/1200",
             contentDescription = null,
-            modifier = Modifier.fillMaxSize().alpha(0.4f),
+            modifier = Modifier.fillMaxSize().alpha(0.3f),
             contentScale = ContentScale.Crop
         )
         Column(modifier = Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {

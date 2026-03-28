@@ -20,6 +20,7 @@ import com.moises.vitalodyssey.data.local.UserPreferencesManager
 import com.moises.vitalodyssey.presentation.screens.DashboardScreen
 import com.moises.vitalodyssey.presentation.screens.HabitsScreen
 import com.moises.vitalodyssey.presentation.screens.LoginScreen
+import com.moises.vitalodyssey.presentation.screens.OnboardingScreen
 import com.moises.vitalodyssey.presentation.screens.ProfileScreen
 import com.moises.vitalodyssey.ui.theme.VitalOdysseyTheme
 import org.koin.compose.koinInject
@@ -49,14 +50,28 @@ fun VitalOdysseyMainScreen(
         return
     }
 
-    val startDestination = if (userPrefsState?.isLoggedIn == true) "dashboard" else "login"
+    val startDestination = when {
+        userPrefsState?.isLoggedIn != true -> "login"
+        userPrefsState?.hasCompletedOnboarding != true -> "onboarding"
+        else -> "dashboard"
+    }
 
     NavHost(navController = navController, startDestination = startDestination) {
         composable("login") {
             LoginScreen(
                 onLoginSuccess = {
-                    navController.navigate("dashboard") {
+                    val nextDest = if (userPrefsState?.hasCompletedOnboarding == true) "dashboard" else "onboarding"
+                    navController.navigate(nextDest) {
                         popUpTo("login") { inclusive = true }
+                    }
+                }
+            )
+        }
+        composable("onboarding") {
+            OnboardingScreen(
+                onFinish = {
+                    navController.navigate("dashboard") {
+                        popUpTo("onboarding") { inclusive = true }
                     }
                 }
             )
