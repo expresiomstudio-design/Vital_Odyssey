@@ -40,9 +40,10 @@ fun OnboardingScreen(
 
     OnboardingContent(
         uiState = uiState,
+        onNameChange = viewModel::onNameChange,
         onTypeSelected = viewModel::selectBodyType,
         onClassSelected = viewModel::selectPlayerClass,
-        onStart = viewModel::saveCharacter,
+        onStart = viewModel::completeOnboarding,
         onFinish = onFinish
     )
 }
@@ -50,6 +51,7 @@ fun OnboardingScreen(
 @Composable
 fun OnboardingContent(
     uiState: OnboardingUiState,
+    onNameChange: (String) -> Unit,
     onTypeSelected: (BodyType) -> Unit,
     onClassSelected: (PlayerClass) -> Unit,
     onStart: () -> Unit,
@@ -75,6 +77,8 @@ fun OnboardingContent(
         ) {
             if (currentStep == 1) {
                 StepOneContent(
+                    name = uiState.name,
+                    onNameChange = onNameChange,
                     selectedType = uiState.selectedBodyType,
                     onTypeSelected = onTypeSelected,
                     onContinue = { currentStep = 2 }
@@ -82,6 +86,7 @@ fun OnboardingContent(
             } else {
                 StepTwoContent(
                     selectedClass = uiState.selectedPlayerClass,
+                    isLoading = uiState.isLoading,
                     onClassSelected = onClassSelected,
                     onStart = onStart
                 )
@@ -92,6 +97,8 @@ fun OnboardingContent(
 
 @Composable
 fun StepOneContent(
+    name: String,
+    onNameChange: (String) -> Unit,
     selectedType: BodyType?,
     onTypeSelected: (BodyType) -> Unit,
     onContinue: () -> Unit
@@ -110,9 +117,20 @@ fun StepOneContent(
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                "Elige la forma que tomará tu héroe",
+                "Define tu identidad en esta odisea",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            
+            Spacer(modifier = Modifier.height(32.dp))
+            
+            OutlinedTextField(
+                value = name,
+                onValueChange = onNameChange,
+                label = { Text("Nombre del Héroe") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp)
             )
         }
 
@@ -138,7 +156,7 @@ fun StepOneContent(
 
         Button(
             onClick = onContinue,
-            enabled = selectedType != null,
+            enabled = selectedType != null && name.isNotBlank(),
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp),
@@ -193,6 +211,7 @@ fun BodyTypeCard(
 @Composable
 fun StepTwoContent(
     selectedClass: PlayerClass?,
+    isLoading: Boolean,
     onClassSelected: (PlayerClass) -> Unit,
     onStart: () -> Unit
 ) {
@@ -234,7 +253,7 @@ fun StepTwoContent(
 
         Button(
             onClick = onStart,
-            enabled = selectedClass != null,
+            enabled = selectedClass != null && !isLoading,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(64.dp),
@@ -245,7 +264,7 @@ fun StepTwoContent(
             ),
             contentPadding = PaddingValues()
         ) {
-            val isEnabled = selectedClass != null
+            val isEnabled = selectedClass != null && !isLoading
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -262,12 +281,20 @@ fun StepTwoContent(
                     ),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    "EMPEZAR ODISEA",
-                    style = MaterialTheme.typography.titleLarge,
-                    color = if (isEnabled) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                    letterSpacing = 2.sp
-                )
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.size(24.dp),
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Text(
+                        "EMPEZAR ODISEA",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = if (isEnabled) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                        letterSpacing = 2.sp
+                    )
+                }
             }
         }
     }
@@ -327,9 +354,11 @@ fun OnboardingScreenPreview() {
     VitalOdysseyTheme {
         OnboardingContent(
             uiState = OnboardingUiState(
+                name = "Moises",
                 selectedBodyType = BodyType.MALE,
                 selectedPlayerClass = PlayerClass.WARRIOR
             ),
+            onNameChange = {},
             onTypeSelected = {},
             onClassSelected = {},
             onStart = {},

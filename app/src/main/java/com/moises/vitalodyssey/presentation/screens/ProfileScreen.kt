@@ -12,12 +12,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -25,6 +24,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
@@ -36,14 +36,22 @@ import org.koin.androidx.compose.koinViewModel
 @Composable
 fun ProfileScreen(
     viewModel: ProfileViewModel = koinViewModel(),
-    onNavigateBack: () -> Unit = {}
+    onNavigateBack: () -> Unit = {},
+    onNavigateToLogin: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
+
+    LaunchedEffect(uiState.isLoggedOut) {
+        if (uiState.isLoggedOut) {
+            onNavigateToLogin()
+        }
+    }
 
     ProfileScreenContent(
         uiState = uiState,
         onNavigateBack = onNavigateBack,
-        onLogout = { viewModel.logout() }
+        onLogout = { viewModel.logout() },
+        onDeleteAccount = { viewModel.deleteAccount() }
     )
 }
 
@@ -52,8 +60,35 @@ fun ProfileScreen(
 fun ProfileScreenContent(
     uiState: ProfileUiState,
     onNavigateBack: () -> Unit = {},
-    onLogout: () -> Unit = {}
+    onLogout: () -> Unit = {},
+    onDeleteAccount: () -> Unit = {}
 ) {
+    var showDeleteDialog by remember { mutableStateOf(false) }
+
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("¿Eliminar cuenta permanentemente?") },
+            text = { Text("Esta acción es irreversible. Se borrarán todos tus progresos, estadísticas y datos de la nube conforme a la RGPD.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteDialog = false
+                        onDeleteAccount()
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("BORRAR TODO")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("CANCELAR")
+                }
+            }
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -125,6 +160,11 @@ fun ProfileScreenContent(
                 color = MaterialTheme.colorScheme.primaryContainer
             )
             Text(
+                text = uiState.playerEmail,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+            )
+            Text(
                 text = uiState.playerClass, 
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
@@ -153,7 +193,7 @@ fun ProfileScreenContent(
                 ProfileAttributeCard(
                     modifier = Modifier.weight(1f),
                     label = "VIDA",
-                    value = uiState.hpText,
+                    value = "${uiState.currentHp}/${uiState.maxHp}",
                     icon = Icons.Default.Bolt,
                     color = MaterialTheme.colorScheme.secondary
                 )
@@ -175,12 +215,23 @@ fun ProfileScreenContent(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    RecordItem("Mayor Racha de Hábitos", "24 Días", MaterialTheme.colorScheme.primaryContainer)
+                    RecordItem("Mayor Racha de Hábitos", "${uiState.highestStreak} Días", MaterialTheme.colorScheme.primaryContainer)
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(vertical = 12.dp))
-                    RecordItem("Jefes Derrotados", "3", MaterialTheme.colorScheme.primaryContainer)
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(vertical = 12.dp))
-                    RecordItem("Días de Disciplina Total", "45", MaterialTheme.colorScheme.primaryContainer)
+                    RecordItem("Jefes Derrotados", uiState.bossesDefeatedCount.toString(), MaterialTheme.colorScheme.primaryContainer)
                 }
+            }
+            
+            Spacer(modifier = Modifier.height(48.dp))
+            
+            Button(
+                onClick = { showDeleteDialog = true },
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Icon(Icons.Default.DeleteForever, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("BORRAR CUENTA Y DATOS", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
             }
             
             Spacer(modifier = Modifier.height(32.dp))
@@ -251,13 +302,18 @@ fun ProfileScreenPreview() {
         ProfileScreenContent(
             uiState = ProfileUiState(
                 playerName = "Moisés Sánchez",
-                playerClass = "MAGO DE GREMIO • CLASE DE HONOR",
+                playerEmail = "moises@example.com",
+                playerClass = "MAGO",
                 attackStat = 150,
                 defenseStat = 80,
-                hpText = "1200/1200"
+                currentHp = 1200,
+                maxHp = 1200,
+                highestStreak = 15,
+                bossesDefeatedCount = 5
             ),
             onNavigateBack = {},
-            onLogout = {}
+            onLogout = {},
+            onDeleteAccount = {}
         )
     }
 }

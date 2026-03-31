@@ -3,34 +3,33 @@ package com.moises.vitalodyssey
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.material3.Surface
-import androidx.compose.runtime.Composable
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.platform.LocalContext
-import org.koin.android.ext.koin.androidContext
-import org.koin.core.context.GlobalContext
-import org.koin.core.context.startKoin
-import com.moises.vitalodyssey.di.appModule
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import com.moises.vitalodyssey.data.local.UserPreferencesManager
-import com.moises.vitalodyssey.presentation.screens.DashboardScreen
-import com.moises.vitalodyssey.presentation.screens.HabitsScreen
-import com.moises.vitalodyssey.presentation.screens.LoginScreen
-import com.moises.vitalodyssey.presentation.screens.OnboardingScreen
-import com.moises.vitalodyssey.presentation.screens.ProfileScreen
+import com.moises.vitalodyssey.presentation.screens.*
+import com.moises.vitalodyssey.presentation.viewmodels.MainViewModel
 import com.moises.vitalodyssey.ui.theme.VitalOdysseyTheme
-import org.koin.compose.koinInject
+import org.koin.androidx.compose.koinViewModel
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
             VitalOdysseyTheme {
-                Surface {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background
+                ) {
                     VitalOdysseyMainScreen()
                 }
             }
@@ -40,77 +39,96 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun VitalOdysseyMainScreen(
-    userPrefs: UserPreferencesManager = koinInject()
+    viewModel: MainViewModel = koinViewModel()
 ) {
-    val userPrefsState by userPrefs.userPrefsFlow.collectAsState(initial = null)
+    val isLoading by viewModel.isLoading.collectAsState()
+    val startDestination by viewModel.startDestination.collectAsState()
     val navController = rememberNavController()
 
-    if (userPrefsState == null) {
-        // Pantalla de carga o Box vacío mientras se recuperan las preferencias
-        return
-    }
-
-    val startDestination = when {
-        userPrefsState?.isLoggedIn != true -> "login"
-        userPrefsState?.hasCompletedOnboarding != true -> "onboarding"
-        else -> "dashboard"
-    }
-
-    NavHost(navController = navController, startDestination = startDestination) {
-        composable("login") {
-            LoginScreen(
-                onLoginSuccess = {
-                    val nextDest = if (userPrefsState?.hasCompletedOnboarding == true) "dashboard" else "onboarding"
-                    navController.navigate(nextDest) {
-                        popUpTo("login") { inclusive = true }
+    if (isLoading) {
+        SplashScreen()
+    } else {
+        NavHost(navController = navController, startDestination = startDestination) {
+            composable("login") {
+                LoginScreen(
+                    onLoginSuccess = {
+                        navController.navigate("onboarding") {
+                            popUpTo("login") { inclusive = true }
+                        }
                     }
-                }
-            )
-        }
-        composable("onboarding") {
-            OnboardingScreen(
-                onFinish = {
-                    navController.navigate("dashboard") {
-                        popUpTo("onboarding") { inclusive = true }
+                )
+            }
+            composable("onboarding") {
+                OnboardingScreen(
+                    onFinish = {
+                        navController.navigate("dashboard") {
+                            popUpTo("onboarding") { inclusive = true }
+                        }
                     }
-                }
-            )
-        }
-        composable("dashboard") {
-            DashboardScreen(
-                onNavigateToHabits = { navController.navigate("habits") },
-                onNavigateToProfile = { navController.navigate("profile") }
-            )
-        }
-        composable("habits") {
-            HabitsScreen(
-                onNavigateToDashboard = { navController.navigate("dashboard") },
-                onNavigateToProfile = { navController.navigate("profile") }
-            )
-        }
-
-        composable("profile") {
-            ProfileScreen(
-                onNavigateBack = { navController.popBackStack() }
-            )
+                )
+            }
+            composable("dashboard") {
+                DashboardScreen(
+                    onNavigateToHabits = { navController.navigate("habits") },
+                    onNavigateToProfile = { navController.navigate("profile") }
+                )
+            }
+            composable("habits") {
+                HabitsScreen(
+                    onNavigateToDashboard = { navController.navigate("dashboard") },
+                    onNavigateToProfile = { navController.navigate("profile") }
+                )
+            }
+            composable("profile") {
+                ProfileScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToLogin = {
+                        navController.navigate("login") {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    }
+                )
+            }
         }
     }
 }
 
-@Preview(showBackground = true)
 @Composable
-fun VitalOdysseyMainScreenPreview() {
-    val context = LocalContext.current
-    if (GlobalContext.getOrNull() == null) {
-        startKoin {
-            androidContext(context)
-            modules(appModule)
-        }
-    }
-    
-    VitalOdysseyTheme {
-        Surface {
-            VitalOdysseyMainScreen()
+fun SplashScreen() {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        MaterialTheme.colorScheme.surface,
+                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f)
+                    )
+                )
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                text = "VITAL ODYSSEY",
+                style = MaterialTheme.typography.displayLarge,
+                color = MaterialTheme.colorScheme.primaryContainer,
+                letterSpacing = 4.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(24.dp))
+            CircularProgressIndicator(
+                color = MaterialTheme.colorScheme.primaryContainer,
+                strokeWidth = 3.dp,
+                modifier = Modifier.size(48.dp)
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = "CARGANDO MUNDO...",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f),
+                letterSpacing = 2.sp
+            )
         }
     }
 }

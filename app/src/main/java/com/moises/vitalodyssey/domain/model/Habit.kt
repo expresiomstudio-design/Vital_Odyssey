@@ -13,6 +13,7 @@ enum class HabitRole { OFFENSIVE, DEFENSIVE }
 data class Habit(
     @PrimaryKey(autoGenerate = true)
     val id: Int = 0,
+    val firestoreId: String = "",
     val name: String,
     val note: String = "",
 

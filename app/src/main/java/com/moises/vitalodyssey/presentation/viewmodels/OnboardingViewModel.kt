@@ -2,9 +2,11 @@ package com.moises.vitalodyssey.presentation.viewmodels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.moises.vitalodyssey.data.local.UserPreferencesManager
+import com.google.firebase.auth.FirebaseAuth
 import com.moises.vitalodyssey.domain.model.BodyType
 import com.moises.vitalodyssey.domain.model.PlayerClass
+import com.moises.vitalodyssey.domain.model.UserProfile
+import com.moises.vitalodyssey.domain.repository.UserRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -12,17 +14,28 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 data class OnboardingUiState(
+    val name: String = "",
     val selectedBodyType: BodyType? = null,
     val selectedPlayerClass: PlayerClass? = null,
-    val isCompleted: Boolean = false
+    val isCompleted: Boolean = false,
+    val isLoading: Boolean = false
 )
 
 class OnboardingViewModel(
-    private val userPrefs: UserPreferencesManager
+    private val userRepository: UserRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(OnboardingUiState())
     val uiState: StateFlow<OnboardingUiState> = _uiState.asStateFlow()
+
+    init {
+        val currentUser = FirebaseAuth.getInstance().currentUser
+        _uiState.update { it.copy(name = currentUser?.displayName ?: "") }
+    }
+
+    fun onNameChange(newName: String) {
+        _uiState.update { it.copy(name = newName) }
+    }
 
     fun selectBodyType(bodyType: BodyType) {
         _uiState.update { it.copy(selectedBodyType = bodyType) }
@@ -32,15 +45,44 @@ class OnboardingViewModel(
         _uiState.update { it.copy(selectedPlayerClass = playerClass) }
     }
 
-    fun saveCharacter() {
+    fun completeOnboarding() {
         val currentState = _uiState.value
-        val bodyType = currentState.selectedBodyType
-        val playerClass = currentState.selectedPlayerClass
+        val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return
+        val email = FirebaseAuth.getInstance().currentUser?.email ?: ""
 
-        if (bodyType != null && playerClass != null) {
+        if (currentState.name.isNotBlank() && 
+            currentState.selectedBodyType != null && 
+            currentState.selectedPlayerClass != null) {
+            
+            _uiState.update { it.copy(isLoading = true) }
+
+            val initialProfile = UserProfile(
+                uid = uid,
+                name = currentState.name,
+                email = email,
+                bodyType = currentState.selectedBodyType,
+                playerClass = currentState.selectedPlayerClass,
+                level = 1,
+                currentXp = 0,
+                currentHp = 1000,
+                currentStamina = 100,
+                presenceStreak = 0,
+                highestStreak = 0,
+                bossesDefeated = emptyList(),
+                cutoffTime = "00:00",
+                difficulty = "NORMAL",
+                hasCompletedOnboarding = true
+            )
+
             viewModelScope.launch {
-                userPrefs.completeOnboarding(bodyType, playerClass)
-                _uiState.update { it.copy(isCompleted = true) }
+                try {
+                    userRepository.updateStats(initialProfile)
+                    userRepository.syncUserToCloud()
+                    _uiState.update { it.copy(isCompleted = true, isLoading = false) }
+                } catch (e: Exception) {
+                    _uiState.update { it.copy(isLoading = false) }
+                    // Handle error
+                }
             }
         }
     }

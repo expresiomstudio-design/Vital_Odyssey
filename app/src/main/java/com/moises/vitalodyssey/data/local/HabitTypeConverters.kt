@@ -5,6 +5,8 @@ import com.moises.vitalodyssey.domain.model.Frequency
 import com.moises.vitalodyssey.domain.model.HabitRole
 import com.moises.vitalodyssey.domain.model.HabitType
 import com.moises.vitalodyssey.domain.model.TargetType
+import com.moises.vitalodyssey.domain.model.BodyType
+import com.moises.vitalodyssey.domain.model.PlayerClass
 
 class HabitTypeConverters {
 
@@ -31,4 +33,22 @@ class HabitTypeConverters {
 
     @TypeConverter
     fun toHabitRole(value: String): HabitRole = HabitRole.valueOf(value)
+
+    @TypeConverter
+    fun fromStringList(value: List<String>): String = value.joinToString(",")
+
+    @TypeConverter
+    fun toStringList(value: String): List<String> = if (value.isEmpty()) emptyList() else value.split(",")
+
+    @TypeConverter
+    fun fromBodyType(value: BodyType?): String? = value?.name
+
+    @TypeConverter
+    fun toBodyType(value: String?): BodyType? = value?.let { BodyType.valueOf(it) }
+
+    @TypeConverter
+    fun fromPlayerClass(value: PlayerClass?): String? = value?.name
+
+    @TypeConverter
+    fun toPlayerClass(value: String?): PlayerClass? = value?.let { PlayerClass.valueOf(it) }
 }
