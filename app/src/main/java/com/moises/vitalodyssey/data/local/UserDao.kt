@@ -8,6 +8,9 @@ interface UserDao {
     @Query("SELECT * FROM user_profile WHERE uid = :uid")
     fun getUser(uid: String): Flow<UserEntity?>
 
+    @Query("SELECT * FROM user_profile WHERE uid = :uid")
+    suspend fun getUserOnce(uid: String): UserEntity?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertOrUpdateUser(user: UserEntity)
 

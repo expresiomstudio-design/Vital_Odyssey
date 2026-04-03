@@ -23,4 +23,7 @@ interface HabitDao {
     // Atajo útil para marcar rápidamente como completado
     @Query("UPDATE habits_table SET isCompleted = :completed WHERE id = :habitId")
     suspend fun updateHabitStatus(habitId: Int, completed: Boolean)
+
+    @Query("DELETE FROM habits_table")
+    suspend fun deleteAllHabits()
 }

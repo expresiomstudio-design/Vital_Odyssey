@@ -8,21 +8,21 @@ import com.moises.vitalodyssey.domain.model.UserProfile
 
 @Entity(tableName = "user_profile")
 data class UserEntity(
-    @PrimaryKey val uid: String,
-    val name: String,
-    val email: String,
-    val bodyType: BodyType?,
-    val playerClass: PlayerClass?,
-    val level: Int,
-    val currentXp: Int,
-    val currentHp: Int,
-    val currentStamina: Int,
-    val presenceStreak: Int,
-    val highestStreak: Int,
-    val bossesDefeated: List<String>,
-    val cutoffTime: String,
-    val difficulty: String,
-    val hasCompletedOnboarding: Boolean
+    @PrimaryKey val uid: String = "",
+    val name: String = "",
+    val email: String = "",
+    val bodyType: BodyType? = null,
+    val playerClass: PlayerClass? = null,
+    val level: Int = 1,
+    val currentXp: Int = 0,
+    val currentHp: Int = 100,
+    val currentStamina: Int = 100,
+    val presenceStreak: Int = 0,
+    val highestStreak: Int = 0,
+    val bossesDefeated: List<String> = emptyList(),
+    val cutoffTime: String = "00:00",
+    val difficulty: String = "NORMAL",
+    val hasCompletedOnboarding: Boolean = false
 ) {
     fun toDomain() = UserProfile(
         uid = uid,

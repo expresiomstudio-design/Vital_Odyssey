@@ -7,7 +7,6 @@ import com.moises.vitalodyssey.domain.repository.UserRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 
 class MainViewModel(
@@ -25,6 +24,16 @@ class MainViewModel(
         checkInitialStateOptimistic()
     }
 
+    suspend fun getDestinationAfterLogin(): String {
+        return try {
+            userRepository.fetchUserFromCloud()
+            val profile = userRepository.getUserProfileOnce()
+            if (profile?.hasCompletedOnboarding == true) "dashboard" else "onboarding"
+        } catch (e: Exception) {
+            "onboarding"
+        }
+    }
+
     private fun checkInitialStateOptimistic() {
         viewModelScope.launch {
             val currentUser = auth.currentUser
@@ -32,21 +41,24 @@ class MainViewModel(
             if (currentUser == null) {
                 _startDestination.value = "login"
             } else {
-                // Intentamos una lectura ultra rápida de Room (caché local)
-                val profile = userRepository.getUserProfile().firstOrNull()
+                // Sincronización robusta: intentamos traer datos de Firestore primero
+                try {
+                    userRepository.fetchUserFromCloud()
+                } catch (e: Exception) {
+                    // Si falla la red, confiaremos en lo que haya en Room (offline-first)
+                }
+
+                // Ahora consultamos el perfil (que debería estar actualizado por fetchUserFromCloud)
+                val profile = userRepository.getUserProfileOnce()
                 
-                when {
-                    profile?.hasCompletedOnboarding == true -> {
-                        _startDestination.value = "dashboard"
-                    }
-                    else -> {
-                        // Si no hay perfil o no completó onboarding, va a onboarding
-                        _startDestination.value = "onboarding"
-                    }
+                if (profile != null && profile.hasCompletedOnboarding) {
+                    _startDestination.value = "dashboard"
+                } else {
+                    _startDestination.value = "onboarding"
                 }
             }
             
-            // Liberamos la UI de inmediato
+            // Solo pasamos a false cuando la decisión de navegación está tomada
             _isLoading.value = false
         }
     }

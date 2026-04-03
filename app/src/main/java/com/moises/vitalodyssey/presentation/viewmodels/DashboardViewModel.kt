@@ -3,14 +3,10 @@ package com.moises.vitalodyssey.presentation.viewmodels
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.moises.vitalodyssey.data.local.Difficulty
-import com.moises.vitalodyssey.data.local.UserPreferencesManager
+import com.moises.vitalodyssey.domain.repository.UserRepository
 import com.moises.vitalodyssey.domain.usecase.*
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.flow.first
 
 data class DashboardUiState(
     val level: Int = 1,
@@ -26,7 +22,7 @@ data class DashboardUiState(
 )
 
 class DashboardViewModel(
-    private val userPrefs: UserPreferencesManager,
+    private val userRepository: UserRepository,
     private val calculateStats: CalculatePlayerStatsUseCase,
     private val calculateBossStats: CalculateBossStatsUseCase,
     private val calculateBattleTurn: CalculateBattleTurnUseCase,
@@ -35,25 +31,27 @@ class DashboardViewModel(
 
     private var currentLog = "La noche es oscura, pero tu voluntad es de hierro."
 
-    val uiState: StateFlow<DashboardUiState> = userPrefs.userPrefsFlow.map { prefs ->
-        val stats = calculateStats(prefs.level)
+    val uiState: StateFlow<DashboardUiState> = userRepository.getUserProfile().map { profile ->
+        if (profile == null) return@map DashboardUiState()
+        
+        val stats = calculateStats(profile.level)
 
         val hpRange = (stats.maxHp - stats.faintHp).toFloat()
-        val currentVisualHp = (prefs.currentHp - stats.faintHp).coerceAtLeast(0).toFloat()
+        val currentVisualHp = (profile.currentHp - stats.faintHp).coerceAtLeast(0).toFloat()
         val hpPercent = if (hpRange > 0) currentVisualHp / hpRange else 0f
 
         val xpPercent = if (stats.xpForNextLevel > 0) {
-            prefs.currentXp.toFloat() / stats.xpForNextLevel.toFloat()
+            profile.currentXp.toFloat() / stats.xpForNextLevel.toFloat()
         } else 0f
 
         DashboardUiState(
-            level = prefs.level,
-            hpText = "${prefs.currentHp} / ${stats.maxHp} HP",
+            level = profile.level,
+            hpText = "${profile.currentHp} / ${stats.maxHp} HP",
             visualHpPercent = hpPercent,
-            xpText = "${prefs.currentXp} / ${stats.xpForNextLevel} XP",
+            xpText = "${profile.currentXp} / ${stats.xpForNextLevel} XP",
             visualXpPercent = xpPercent,
-            currentStamina = prefs.currentStamina,
-            presenceStreak = prefs.presenceStreak,
+            currentStamina = profile.currentStamina,
+            presenceStreak = profile.presenceStreak,
             attackStat = stats.baseAttack,
             defenseStat = stats.baseDefense,
             combatLog = currentLog
@@ -66,19 +64,20 @@ class DashboardViewModel(
 
     fun simulateAttack() {
         viewModelScope.launch {
-            val currentState = uiState.value
+            val currentProfile = userRepository.getUserProfile().firstOrNull() ?: return@launch
 
-            if (currentState.currentStamina < 33) {
+            if (currentProfile.currentStamina < 33) {
                 currentLog = "No tienes suficiente estamina (Foco Arcano) para atacar."
-                userPrefs.updateStamina(currentState.currentStamina)
+                // Forzar actualización para que se vea el log si no hay cambio de datos
+                userRepository.updateStats(currentProfile) 
                 return@launch
             }
 
-            userPrefs.updateStamina(currentState.currentStamina - 33)
-            userPrefs.updatePresenceStreak(currentState.presenceStreak + 1)
+            val newStamina = currentProfile.currentStamina - 33
+            val newStreak = currentProfile.presenceStreak + 1
 
-            val bossAttack = calculateBossStats(currentState.level, Difficulty.NORMAL)
-            val playerStats = calculateStats(currentState.level)
+            val bossAttack = calculateBossStats(currentProfile.level, Difficulty.NORMAL)
+            val playerStats = calculateStats(currentProfile.level)
 
             val battleResult = calculateBattleTurn(
                 playerStats = playerStats,
@@ -92,13 +91,10 @@ class DashboardViewModel(
                 currentStreak = 2
             )
 
-            val currentHpInt = currentState.hpText.split(" / ")[0].toInt()
-            val currentXpInt = currentState.xpText.split(" / ")[0].toInt()
-
             val newState = processBattleResult(
-                currentLevel = currentState.level,
-                currentXp = currentXpInt,
-                currentHp = currentHpInt,
+                currentLevel = currentProfile.level,
+                currentXp = currentProfile.currentXp,
+                currentHp = currentProfile.currentHp,
                 battleResult = battleResult
             )
 
@@ -110,15 +106,22 @@ class DashboardViewModel(
                 "El Jefe ataca (${battleResult.damageReceivedFromBoss} DMG). Te curas ${battleResult.hpHealed} HP."
             }
 
-            userPrefs.updateLevelAndXp(newState.newLevel, newState.newXp)
-            userPrefs.updateHp(newState.newHp)
+            val updatedProfile = currentProfile.copy(
+                currentStamina = newStamina,
+                currentHp = newState.newHp,
+                currentXp = newState.newXp,
+                level = newState.newLevel,
+                presenceStreak = newStreak
+            )
+            
+            userRepository.updateStats(updatedProfile)
         }
     }
 
     fun dailyReset(appFocusPercentage: Int) {
         viewModelScope.launch {
-            val currentState = userPrefs.userPrefsFlow.first()
-            val streak = currentState.presenceStreak
+            val currentProfile = userRepository.getUserProfile().firstOrNull() ?: return@launch
+            val streak = currentProfile.presenceStreak
             
             val baseStamina = 34
             val streakBonus = (streak * 3).coerceAtMost(33)
@@ -126,7 +129,8 @@ class DashboardViewModel(
             
             val newStamina = (baseStamina + streakBonus + focusBonus).coerceAtMost(100)
             
-            userPrefs.updateStamina(newStamina)
+            val updatedProfile = currentProfile.copy(currentStamina = newStamina)
+            userRepository.updateStats(updatedProfile)
         }
     }
 }

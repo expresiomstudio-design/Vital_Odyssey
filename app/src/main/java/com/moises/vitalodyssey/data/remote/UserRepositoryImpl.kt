@@ -1,10 +1,10 @@
 package com.moises.vitalodyssey.data.remote
 
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseAuthRecentLoginRequiredException
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
-import com.moises.vitalodyssey.data.local.UserDao
-import com.moises.vitalodyssey.data.local.UserEntity
+import com.moises.vitalodyssey.data.local.*
 import com.moises.vitalodyssey.domain.model.UserProfile
 import com.moises.vitalodyssey.domain.repository.UserRepository
 import kotlinx.coroutines.Dispatchers
@@ -16,8 +16,10 @@ import kotlinx.coroutines.withContext
 
 class UserRepositoryImpl(
     private val userDao: UserDao,
+    private val habitDao: HabitDao,
     private val firestore: FirebaseFirestore,
-    private val auth: FirebaseAuth
+    private val auth: FirebaseAuth,
+    private val userPrefs: UserPreferencesManager
 ) : UserRepository {
 
     private val currentUid: String?
@@ -26,6 +28,12 @@ class UserRepositoryImpl(
     override fun getUserProfile(): Flow<UserProfile?> {
         val uid = currentUid ?: return kotlinx.coroutines.flow.flowOf(null)
         return userDao.getUser(uid).map { it?.toDomain() }
+    }
+
+    override suspend fun getUserProfileOnce(): UserProfile? = withContext(Dispatchers.IO) {
+        currentUid?.let { uid ->
+            userDao.getUserOnce(uid)?.toDomain()
+        }
     }
 
     override suspend fun syncUserToCloud(): Unit = withContext(Dispatchers.IO) {
@@ -59,13 +67,49 @@ class UserRepositoryImpl(
     override suspend fun deleteUserAccount(): Unit = withContext(Dispatchers.IO) {
         val uid = currentUid ?: return@withContext
         
-        // 1. Eliminar de Firestore
-        firestore.collection("users").document(uid).delete().await()
-        
-        // 2. Eliminar de Room
-        userDao.deleteUser(uid)
-        
-        // 3. Eliminar de Firebase Auth
-        auth.currentUser?.delete()?.await()
+        try {
+            // 1. Eliminar Hábitos en Firestore (subcolección)
+            val habitsSnapshot = firestore.collection("users").document(uid).collection("habits").get().await()
+            habitsSnapshot.documents.forEach { doc ->
+                doc.reference.delete().await()
+            }
+
+            // 2. Eliminar de Firestore (documento principal)
+            firestore.collection("users").document(uid).delete().await()
+            
+            // 3. Eliminar de Room
+            userDao.deleteUser(uid)
+            habitDao.deleteAllHabits()
+
+            // 4. Limpiar DataStore
+            userPrefs.clearAll()
+            
+            // 5. Eliminar de Firebase Auth
+            val user = auth.currentUser
+            user?.delete()?.await()
+            auth.signOut()
+        } catch (e: FirebaseAuthRecentLoginRequiredException) {
+            throw e // Re-lanzamos para que el ViewModel pida re-autenticación
+        } catch (e: Exception) {
+            // Log o manejo de errores genérico
+        }
+    }
+
+    override suspend fun syncHabitsToCloud(): Unit = withContext(Dispatchers.IO) {
+        val uid = currentUid ?: return@withContext
+        habitDao.getAllHabits().firstOrNull()?.forEach { habit ->
+            firestore.collection("users").document(uid)
+                .collection("habits").document(habit.id.toString())
+                .set(habit, SetOptions.merge())
+                .await()
+        }
+    }
+
+    override suspend fun fetchHabitsFromCloud(): Unit = withContext(Dispatchers.IO) {
+        val uid = currentUid ?: return@withContext
+        val snapshot = firestore.collection("users").document(uid).collection("habits").get().await()
+        snapshot.toObjects(com.moises.vitalodyssey.domain.model.Habit::class.java).forEach { habit ->
+            habitDao.insertHabit(habit)
+        }
     }
 }

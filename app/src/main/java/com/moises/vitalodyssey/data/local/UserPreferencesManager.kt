@@ -153,4 +153,10 @@ class UserPreferencesManager(private val context: Context) {
             preferences[PreferencesKeys.HAS_COMPLETED_ONBOARDING] = true
         }
     }
+
+    suspend fun clearAll() {
+        context.dataStore.edit { preferences ->
+            preferences.clear()
+        }
+    }
 }

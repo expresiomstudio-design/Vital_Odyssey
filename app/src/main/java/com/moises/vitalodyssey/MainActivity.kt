@@ -19,6 +19,7 @@ import androidx.navigation.compose.rememberNavController
 import com.moises.vitalodyssey.presentation.screens.*
 import com.moises.vitalodyssey.presentation.viewmodels.MainViewModel
 import com.moises.vitalodyssey.ui.theme.VitalOdysseyTheme
+import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 
 class MainActivity : ComponentActivity() {
@@ -50,10 +51,14 @@ fun VitalOdysseyMainScreen(
     } else {
         NavHost(navController = navController, startDestination = startDestination) {
             composable("login") {
+                val scope = rememberCoroutineScope()
                 LoginScreen(
                     onLoginSuccess = {
-                        navController.navigate("onboarding") {
-                            popUpTo("login") { inclusive = true }
+                        scope.launch {
+                            val destination = viewModel.getDestinationAfterLogin()
+                            navController.navigate(destination) {
+                                popUpTo("login") { inclusive = true }
+                            }
                         }
                     }
                 )

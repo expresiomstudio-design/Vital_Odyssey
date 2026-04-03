@@ -29,7 +29,7 @@ val appModule = module {
     single { FirebaseAuth.getInstance() }
     single { FirebaseFirestore.getInstance() }
     single<AuthRepository> { AuthRepositoryImpl(get()) }
-    single<UserRepository> { UserRepositoryImpl(get(), get(), get()) }
+    single<UserRepository> { UserRepositoryImpl(get(), get(), get(), get(), get()) }
 
     // 1. DataStore
     single { UserPreferencesManager(androidContext()) }
@@ -56,7 +56,7 @@ val appModule = module {
     // 5. ViewModels
     viewModel {
         DashboardViewModel(
-            userPrefs = get(),
+            userRepository = get(),
             calculateStats = get(),
             calculateBossStats = get(),
             calculateBattleTurn = get(),

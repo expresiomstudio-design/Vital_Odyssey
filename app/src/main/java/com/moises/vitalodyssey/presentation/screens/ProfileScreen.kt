@@ -65,6 +65,7 @@ fun ProfileScreenContent(
 ) {
     var showDeleteDialog by remember { mutableStateOf(false) }
 
+    // Diálogo de confirmación inicial
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
@@ -87,6 +88,65 @@ fun ProfileScreenContent(
                 }
             }
         )
+    }
+
+    // Diálogo de éxito con cuenta regresiva/barra de progreso
+    if (uiState.showDeleteSuccess) {
+        BasicAlertDialog(onDismissRequest = { }) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .wrapContentHeight(),
+                shape = RoundedCornerShape(28.dp),
+                color = MaterialTheme.colorScheme.surface,
+                tonalElevation = 6.dp
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.DeleteForever,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(48.dp)
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "CUENTA ELIMINADA",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Tus datos han sido borrados correctamente conforme a la RGPD. Saliendo del sistema...",
+                        style = MaterialTheme.typography.bodyMedium,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                    )
+                    Spacer(modifier = Modifier.height(24.dp))
+                    
+                    // Barra de progreso terminándose
+                    LinearProgressIndicator(
+                        progress = { 1f - uiState.deleteProgress },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(8.dp)
+                            .clip(RoundedCornerShape(4.dp)),
+                        color = MaterialTheme.colorScheme.error,
+                        trackColor = MaterialTheme.colorScheme.errorContainer
+                    )
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "Cerrando sesión en ${((1f - uiState.deleteProgress) * 3).toInt() + 1}...",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                    )
+                }
+            }
+        }
     }
 
     Scaffold(

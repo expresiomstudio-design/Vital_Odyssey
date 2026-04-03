@@ -7,6 +7,9 @@ interface UserRepository {
     suspend fun syncUserToCloud()
     suspend fun fetchUserFromCloud()
     fun getUserProfile(): Flow<UserProfile?>
+    suspend fun getUserProfileOnce(): UserProfile?
     suspend fun updateStats(profile: UserProfile)
     suspend fun deleteUserAccount()
+    suspend fun syncHabitsToCloud()
+    suspend fun fetchHabitsFromCloud()
 }
