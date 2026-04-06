@@ -15,5 +15,6 @@ data class UserProfile(
     val bossesDefeated: List<String>,
     val cutoffTime: String,
     val difficulty: String,
-    val hasCompletedOnboarding: Boolean
+    val hasCompletedOnboarding: Boolean,
+    val startOfWeek: String = "MONDAY"
 )

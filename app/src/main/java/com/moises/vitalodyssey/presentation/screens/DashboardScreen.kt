@@ -20,12 +20,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.composables.icons.lucide.*
 import com.moises.vitalodyssey.presentation.viewmodels.DashboardUiState
 import com.moises.vitalodyssey.presentation.viewmodels.DashboardViewModel
 import com.moises.vitalodyssey.ui.theme.OdysseyTheme
@@ -65,10 +68,8 @@ fun DashboardScreenContent(
                 .padding(padding)
                 .padding(horizontal = 16.dp)
                 .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            Spacer(modifier = Modifier.height(0.dp))
-
             StatusBarsSection(uiState)
 
             AttributesRow(uiState)
@@ -76,8 +77,6 @@ fun DashboardScreenContent(
             BossEncounterCard(uiState.combatLog)
 
             ActionSection(uiState) { onSimulateAttack() }
-
-            Spacer(modifier = Modifier.height(0.dp))
         }
     }
 }
@@ -133,7 +132,11 @@ fun TopProfileBar(
         }
 
         IconButton(onClick = onNavigateToProfile) {
-            Icon(Icons.Default.Settings, contentDescription = null, tint = MaterialTheme.colorScheme.primaryContainer)
+            Icon(
+                painter = rememberVectorPainter(Lucide.Settings), 
+                contentDescription = null, 
+                tint = MaterialTheme.colorScheme.primaryContainer
+            )
         }
     }
 }
@@ -146,25 +149,25 @@ fun StatusBarsSection(state: DashboardUiState) {
             valueText = state.hpText,
             progress = state.visualHpPercent,
             color = MaterialTheme.colorScheme.error,
-            icon = Icons.Default.Favorite
+            iconPainter = rememberVectorPainter(Lucide.Heart)
         )
         StatusBar(
             label = "ESTAMINA",
             valueText = "${state.currentStamina}%",
             progress = state.currentStamina / 100f,
             color = MaterialTheme.colorScheme.tertiaryContainer,
-            icon = Icons.Default.Bolt
+            iconPainter = rememberVectorPainter(Lucide.Zap)
         )
     }
 }
 
 @Composable
-fun StatusBar(label: String, valueText: String, progress: Float, color: androidx.compose.ui.graphics.Color, icon: androidx.compose.ui.graphics.vector.ImageVector) {
+fun StatusBar(label: String, valueText: String, progress: Float, color: androidx.compose.ui.graphics.Color, iconPainter: Painter) {
     val animatedProgress by animateFloatAsState(targetValue = progress, animationSpec = tween(800), label = "StatusBarProgress")
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(14.dp))
+                Icon(iconPainter, contentDescription = null, tint = color, modifier = Modifier.size(14.dp))
                 Text(
                     label, 
                     style = MaterialTheme.typography.labelSmall,
@@ -194,20 +197,20 @@ fun AttributesRow(state: DashboardUiState) {
             "ATAQUE", 
             state.attackStat.toString(), 
             MaterialTheme.colorScheme.primary, 
-            Icons.Default.FlashOn
+            rememberVectorPainter(Lucide.Sword)
         )
         AttributeCard(
             Modifier.weight(1f), 
             "DEFENSA", 
             state.defenseStat.toString(), 
             MaterialTheme.colorScheme.secondary, 
-            Icons.Default.Security
+            rememberVectorPainter(Lucide.Shield)
         )
     }
 }
 
 @Composable
-fun AttributeCard(modifier: Modifier, label: String, value: String, color: androidx.compose.ui.graphics.Color, icon: androidx.compose.ui.graphics.vector.ImageVector) {
+fun AttributeCard(modifier: Modifier, label: String, value: String, color: androidx.compose.ui.graphics.Color, iconPainter: Painter) {
     Row(
         modifier = modifier
             .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
@@ -222,7 +225,7 @@ fun AttributeCard(modifier: Modifier, label: String, value: String, color: andro
                 .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(8.dp)), 
             contentAlignment = Alignment.Center
         ) {
-            Icon(icon, contentDescription = null, tint = color)
+            Icon(iconPainter, contentDescription = null, tint = color)
         }
         Column {
             Text(
@@ -242,7 +245,7 @@ fun AttributeCard(modifier: Modifier, label: String, value: String, color: andro
 @Composable
 fun BossEncounterCard(logText: String) {
     Box(
-        modifier = Modifier.fillMaxWidth().height(400.dp).aspectRatio(0.9f).clip(RoundedCornerShape(32.dp))
+        modifier = Modifier.fillMaxWidth().height(415.dp).aspectRatio(0.85f).clip(RoundedCornerShape(32.dp))
             .border(1.dp, MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f), RoundedCornerShape(32.dp))
             .background(MaterialTheme.colorScheme.surfaceVariant)
 
@@ -311,12 +314,22 @@ fun ActionSection(state: DashboardUiState, onAttack: () -> Unit) {
                     ),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    if (isEnabled) "ATACAR" else "SIN ESTAMINA",
-                    style = MaterialTheme.typography.headlineMedium, 
-                    color = if (isEnabled) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface.copy(alpha=0.3f), 
-                    letterSpacing = 2.sp
-                )
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (isEnabled) {
+                        Icon(
+                            painter = rememberVectorPainter(Lucide.Sword), 
+                            contentDescription = null, 
+                            tint = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+                    Text(
+                        if (isEnabled) "ATACAR" else "SIN ESTAMINA",
+                        style = MaterialTheme.typography.headlineMedium, 
+                        color = if (isEnabled) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface.copy(alpha=0.3f), 
+                        letterSpacing = 2.sp
+                    )
+                }
             }
         }
     }
@@ -326,19 +339,19 @@ fun ActionSection(state: DashboardUiState, onAttack: () -> Unit) {
 fun BottomNavBar(onNavigateToHabits: () -> Unit, onNavigateToProfile: () -> Unit) {
     NavigationBar(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)) {
         NavigationBarItem(
-            icon = { Icon(Icons.AutoMirrored.Filled.List, null) }, 
+            icon = { Icon(rememberVectorPainter(Lucide.ScrollText), null) }, 
             label = { Text("Hábitos", style = MaterialTheme.typography.labelSmall) }, 
             selected = false, 
             onClick = onNavigateToHabits
         )
         NavigationBarItem(
-            icon = { Icon(Icons.Default.PlayArrow, null) }, 
+            icon = { Icon(rememberVectorPainter(Lucide.Swords), null) }, 
             label = { Text("Combate", style = MaterialTheme.typography.labelSmall) }, 
             selected = true, 
             onClick = {}
         )
         NavigationBarItem(
-            icon = { Icon(Icons.Default.Person, null) }, 
+            icon = { Icon(rememberVectorPainter(Lucide.User), null) }, 
             label = { Text("Perfil", style = MaterialTheme.typography.labelSmall) }, 
             selected = false, 
             onClick = onNavigateToProfile

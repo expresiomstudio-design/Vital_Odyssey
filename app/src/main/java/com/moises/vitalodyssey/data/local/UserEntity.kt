@@ -22,7 +22,8 @@ data class UserEntity(
     val bossesDefeated: List<String> = emptyList(),
     val cutoffTime: String = "00:00",
     val difficulty: String = "NORMAL",
-    val hasCompletedOnboarding: Boolean = false
+    val hasCompletedOnboarding: Boolean = false,
+    val startOfWeek: String = "MONDAY"
 ) {
     fun toDomain() = UserProfile(
         uid = uid,
@@ -39,7 +40,8 @@ data class UserEntity(
         bossesDefeated = bossesDefeated,
         cutoffTime = cutoffTime,
         difficulty = difficulty,
-        hasCompletedOnboarding = hasCompletedOnboarding
+        hasCompletedOnboarding = hasCompletedOnboarding,
+        startOfWeek = startOfWeek
     )
 
     companion object {
@@ -58,7 +60,8 @@ data class UserEntity(
             bossesDefeated = profile.bossesDefeated,
             cutoffTime = profile.cutoffTime,
             difficulty = profile.difficulty,
-            hasCompletedOnboarding = profile.hasCompletedOnboarding
+            hasCompletedOnboarding = profile.hasCompletedOnboarding,
+            startOfWeek = profile.startOfWeek
         )
     }
 }

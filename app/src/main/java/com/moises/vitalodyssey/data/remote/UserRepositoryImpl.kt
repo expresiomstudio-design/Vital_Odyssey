@@ -68,30 +68,32 @@ class UserRepositoryImpl(
         val uid = currentUid ?: return@withContext
         
         try {
-            // 1. Eliminar Hábitos en Firestore (subcolección)
+            // 1. Eliminar de Firebase Auth PRIMERO (si esto falla por falta de re-auth, no borramos los datos aún)
+            val user = auth.currentUser
+            user?.delete()?.await()
+
+            // 2. Eliminar Hábitos en Firestore (subcolección)
             val habitsSnapshot = firestore.collection("users").document(uid).collection("habits").get().await()
             habitsSnapshot.documents.forEach { doc ->
                 doc.reference.delete().await()
             }
 
-            // 2. Eliminar de Firestore (documento principal)
+            // 3. Eliminar de Firestore (documento principal)
             firestore.collection("users").document(uid).delete().await()
             
-            // 3. Eliminar de Room
+            // 4. Eliminar de Room
             userDao.deleteUser(uid)
             habitDao.deleteAllHabits()
 
-            // 4. Limpiar DataStore
+            // 5. Limpiar DataStore
             userPrefs.clearAll()
             
-            // 5. Eliminar de Firebase Auth
-            val user = auth.currentUser
-            user?.delete()?.await()
             auth.signOut()
         } catch (e: FirebaseAuthRecentLoginRequiredException) {
-            throw e // Re-lanzamos para que el ViewModel pida re-autenticación
+            throw e 
         } catch (e: Exception) {
-            // Log o manejo de errores genérico
+            // Re-lanzamos cualquier otra excepción para que el ViewModel la maneje
+            throw e
         }
     }
 

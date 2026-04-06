@@ -13,6 +13,7 @@ koin = "3.5.3"
 retrofit = "2.9.0"
 credentials = "1.2.2"
 googleid = "1.1.1"
+composeIcons = "1.1.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -41,3 +42,4 @@ converter-gson = { group = "com.squareup.retrofit2", name = "converter-gson", ve
 androidx-credentials = { group = "androidx.credentials", name = "credentials", version.ref = "credentials" }
 androidx-credentials-play-services-auth = { group = "androidx.credentials", name = "credentials-play-services-auth", version.ref = "credentials" }
 googleid = { group = "com.google.android.libraries.identity.googleid", name = "googleid", version.ref = "googleid" }
+compose-icons-lucide = { group = "com.composables", name = "icons-lucide", version.ref = "composeIcons" }

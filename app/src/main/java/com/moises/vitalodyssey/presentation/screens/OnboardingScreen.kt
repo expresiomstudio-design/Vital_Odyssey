@@ -8,9 +8,6 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Female
-import androidx.compose.material.icons.filled.Male
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -18,7 +15,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -26,6 +24,7 @@ import androidx.compose.ui.unit.sp
 import com.moises.vitalodyssey.domain.model.BodyType
 import com.moises.vitalodyssey.domain.model.PlayerClass
 import androidx.compose.ui.tooling.preview.Preview
+import com.composables.icons.lucide.*
 import com.moises.vitalodyssey.presentation.viewmodels.OnboardingUiState
 import com.moises.vitalodyssey.presentation.viewmodels.OnboardingViewModel
 import com.moises.vitalodyssey.ui.theme.VitalOdysseyTheme
@@ -140,14 +139,14 @@ fun StepOneContent(
         ) {
             BodyTypeCard(
                 modifier = Modifier.weight(1f),
-                icon = Icons.Default.Male,
+                iconPainter = rememberVectorPainter(Lucide.User),
                 label = "HOMBRE",
                 isSelected = selectedType == BodyType.MALE,
                 onClick = { onTypeSelected(BodyType.MALE) }
             )
             BodyTypeCard(
                 modifier = Modifier.weight(1f),
-                icon = Icons.Default.Female,
+                iconPainter = rememberVectorPainter(Lucide.User),
                 label = "MUJER",
                 isSelected = selectedType == BodyType.FEMALE,
                 onClick = { onTypeSelected(BodyType.FEMALE) }
@@ -174,7 +173,7 @@ fun StepOneContent(
 @Composable
 fun BodyTypeCard(
     modifier: Modifier,
-    icon: ImageVector,
+    iconPainter: Painter,
     label: String,
     isSelected: Boolean,
     onClick: () -> Unit
@@ -193,7 +192,7 @@ fun BodyTypeCard(
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Icon(
-                imageVector = icon,
+                painter = iconPainter,
                 contentDescription = null,
                 modifier = Modifier.size(64.dp),
                 tint = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
@@ -288,12 +287,20 @@ fun StepTwoContent(
                         strokeWidth = 2.dp
                     )
                 } else {
-                    Text(
-                        "EMPEZAR ODISEA",
-                        style = MaterialTheme.typography.titleLarge,
-                        color = if (isEnabled) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                        letterSpacing = 2.sp
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Icon(
+                            painter = rememberVectorPainter(Lucide.Sword), 
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(28.dp)
+                        )
+                        Text(
+                            "EMPEZAR ODISEA",
+                            style = MaterialTheme.typography.titleLarge,
+                            color = if (isEnabled) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                            letterSpacing = 2.sp
+                        )
+                    }
                 }
             }
         }
@@ -319,6 +326,13 @@ fun PlayerClassItem(
         PlayerClass.DWARF -> "ENANO"
         PlayerClass.ROGUE -> "PÍCARO"
     }
+    
+    val classIcon = when(playerClass) {
+        PlayerClass.WARRIOR -> Lucide.Sword
+        PlayerClass.MAGE -> Lucide.Zap
+        PlayerClass.DWARF -> Lucide.Shield
+        PlayerClass.ROGUE -> Lucide.Zap // Adjust as needed
+    }
 
     val borderColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
     val backgroundColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.1f) else MaterialTheme.colorScheme.surfaceVariant
@@ -331,9 +345,24 @@ fun PlayerClassItem(
             .border(1.dp, borderColor, RoundedCornerShape(16.dp))
             .clickable { onClick() }
             .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Column {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .background(if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface, RoundedCornerShape(8.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                painter = rememberVectorPainter(classIcon),
+                contentDescription = null,
+                tint = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primaryContainer,
+                modifier = Modifier.size(24.dp)
+            )
+        }
+        
+        Column(modifier = Modifier.weight(1f)) {
             Text(
                 name,
                 style = MaterialTheme.typography.titleMedium,

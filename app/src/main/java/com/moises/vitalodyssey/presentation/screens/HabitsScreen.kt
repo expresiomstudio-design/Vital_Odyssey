@@ -9,11 +9,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -22,8 +18,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.composables.icons.lucide.*
 import com.moises.vitalodyssey.domain.model.Habit
 import com.moises.vitalodyssey.domain.model.HabitRole
 import com.moises.vitalodyssey.domain.model.HabitType
@@ -176,7 +174,7 @@ fun HabitCard(
         ) {
             if (habit.isCompleted) {
                 Icon(
-                    Icons.Default.CheckCircle, 
+                    painter = rememberVectorPainter(Lucide.Check), 
                     contentDescription = null, 
                     tint = MaterialTheme.colorScheme.surfaceVariant, 
                     modifier = Modifier.size(24.dp)
@@ -216,19 +214,19 @@ fun HabitCard(
 fun HabitsBottomNavBar(onNavigateToDashboard: () -> Unit, onNavigateToProfile: () -> Unit) {
     NavigationBar(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)) {
         NavigationBarItem(
-            icon = { Icon(Icons.AutoMirrored.Filled.List, null) }, 
+            icon = { Icon(rememberVectorPainter(Lucide.ScrollText), null) }, 
             label = { Text("Hábitos", style = MaterialTheme.typography.labelSmall) }, 
             selected = true, 
             onClick = {}
         )
         NavigationBarItem(
-            icon = { Icon(Icons.Default.PlayArrow, null) }, 
+            icon = { Icon(rememberVectorPainter(Lucide.Swords), null) }, 
             label = { Text("Combate", style = MaterialTheme.typography.labelSmall) }, 
             selected = false, 
             onClick = onNavigateToDashboard
         )
         NavigationBarItem(
-            icon = { Icon(Icons.Default.Person, null) }, 
+            icon = { Icon(rememberVectorPainter(Lucide.User), null) }, 
             label = { Text("Perfil", style = MaterialTheme.typography.labelSmall) }, 
             selected = false, 
             onClick = onNavigateToProfile
