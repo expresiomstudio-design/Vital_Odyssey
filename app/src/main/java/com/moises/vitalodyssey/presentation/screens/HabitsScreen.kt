@@ -3,49 +3,81 @@ package com.moises.vitalodyssey.presentation.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.composables.icons.lucide.*
-import com.moises.vitalodyssey.domain.model.Habit
-import com.moises.vitalodyssey.domain.model.HabitRole
-import com.moises.vitalodyssey.domain.model.HabitType
+import com.moises.vitalodyssey.domain.model.*
+import com.moises.vitalodyssey.presentation.components.HabitProgressRing
+import com.moises.vitalodyssey.presentation.components.HabitStatusGridItem
+import com.moises.vitalodyssey.presentation.viewmodels.HabitWithLog
 import com.moises.vitalodyssey.presentation.viewmodels.HabitsUiState
 import com.moises.vitalodyssey.presentation.viewmodels.HabitsViewModel
 import com.moises.vitalodyssey.ui.theme.VitalOdysseyTheme
+import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun HabitsScreen(
     viewModel: HabitsViewModel = koinViewModel(),
     onNavigateToDashboard: () -> Unit = {},
-    onNavigateToProfile: () -> Unit = {}
+    onNavigateToProfile: () -> Unit = {},
+    onNavigateToForm: (Int) -> Unit = {},
+    onNavigateToTracking: (Int) -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val sheetState = rememberModalBottomSheetState()
+    val scope = rememberCoroutineScope()
+    var selectedHabitForLog by remember { mutableStateOf<Habit?>(null) }
 
     HabitsScreenContent(
         uiState = uiState,
         onNavigateToDashboard = onNavigateToDashboard,
         onNavigateToProfile = onNavigateToProfile,
-        onToggleComplete = { habitId, isCompleted ->
-            viewModel.toggleHabitStatus(habitId, isCompleted)
-        }
+        onHabitLogClick = { selectedHabitForLog = it },
+        onHabitClick = { onNavigateToTracking(it.id) },
+        onAddHabit = { onNavigateToForm(-1) },
+        onEditHabit = { onNavigateToForm(it.id) }
     )
+
+    if (selectedHabitForLog != null) {
+        ModalBottomSheet(
+            onDismissRequest = { selectedHabitForLog = null },
+            sheetState = sheetState,
+            containerColor = MaterialTheme.colorScheme.surface
+        ) {
+            HabitLoggingContent(
+                habit = selectedHabitForLog!!,
+                onRecord = { state, value ->
+                    if (selectedHabitForLog!!.type == HabitType.MEASURABLE && value != null) {
+                        viewModel.recordMeasurableHabit(selectedHabitForLog!!, value)
+                    } else {
+                        viewModel.recordHabit(selectedHabitForLog!!, state)
+                    }
+                    scope.launch { sheetState.hide() }.invokeOnCompletion {
+                        selectedHabitForLog = null
+                    }
+                }
+            )
+        }
+    }
 }
 
 @Composable
@@ -53,7 +85,10 @@ fun HabitsScreenContent(
     uiState: HabitsUiState,
     onNavigateToDashboard: () -> Unit = {},
     onNavigateToProfile: () -> Unit = {},
-    onToggleComplete: (Int, Boolean) -> Unit = { _, _ -> }
+    onHabitLogClick: (Habit) -> Unit = {},
+    onHabitClick: (Habit) -> Unit = {},
+    onAddHabit: () -> Unit = {},
+    onEditHabit: (Habit) -> Unit = {}
 ) {
     Scaffold(
         bottomBar = { HabitsBottomNavBar(onNavigateToDashboard, onNavigateToProfile) },
@@ -69,77 +104,28 @@ fun HabitsScreenContent(
             item { Spacer(modifier = Modifier.height(8.dp)) }
 
             item {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(200.dp)
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                ) {
-                    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)))
-                    
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(24.dp),
-                        verticalArrangement = Arrangement.Bottom
-                    ) {
-                        Text(
-                            "Hábitos Activos", 
-                            style = MaterialTheme.typography.headlineMedium,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            "Ofensivos: ${uiState.offensiveCount} | Defensivos: ${uiState.defensiveCount}", 
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                }
-            }
-            
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    SectionHeader(title = "Mis Hábitos", onAddClick = onAddHabit)
                     Text(
-                        "Mis Hábitos", 
-                        style = MaterialTheme.typography.displayLarge, 
-                        color = MaterialTheme.colorScheme.primaryContainer
+                        text = "Ofensivos: ${uiState.offensiveCount} | Defensivos: ${uiState.defensiveCount}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
+                        modifier = Modifier.padding(bottom = 8.dp)
                     )
-                    IconButton(
-                        onClick = { },
-                        colors = IconButtonDefaults.filledIconButtonColors(MaterialTheme.colorScheme.primaryContainer)
-                    ) {
-                        Icon(Icons.Default.Add, contentDescription = "Add Habit", tint = MaterialTheme.colorScheme.surface)
-                    }
                 }
             }
             
-            items(uiState.habits) { habit ->
+            items(uiState.habitsWithLogs) { habitWithLog ->
                 HabitCard(
-                    habit = habit,
-                    onToggleComplete = { isCompleted ->
-                        onToggleComplete(habit.id, isCompleted)
-                    }
+                    habitWithLog = habitWithLog,
+                    onLogClick = { onHabitLogClick(habitWithLog.habit) },
+                    onClick = { onHabitClick(habitWithLog.habit) },
+                    onLongClick = { onEditHabit(habitWithLog.habit) }
                 )
             }
 
-            if (uiState.habits.isEmpty()) {
-                item {
-                    Box(
-                        modifier = Modifier.fillMaxWidth().padding(32.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            "No tienes hábitos registrados aún.", 
-                            style = MaterialTheme.typography.bodyMedium, 
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                        )
-                    }
-                }
+            if (uiState.habitsWithLogs.isEmpty()) {
+                item { EmptyHabitsView() }
             }
 
             item { Spacer(modifier = Modifier.height(32.dp)) }
@@ -148,117 +134,201 @@ fun HabitsScreenContent(
 }
 
 @Composable
+fun SectionHeader(title: String, onAddClick: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            title, 
+            style = MaterialTheme.typography.displayLarge, 
+            color = MaterialTheme.colorScheme.primaryContainer
+        )
+        IconButton(
+            onClick = onAddClick,
+            colors = IconButtonDefaults.filledIconButtonColors(MaterialTheme.colorScheme.primaryContainer)
+        ) {
+            Icon(Icons.Default.Add, contentDescription = "Add Habit", tint = MaterialTheme.colorScheme.surface)
+        }
+    }
+}
+
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+@Composable
 fun HabitCard(
-    habit: Habit,
-    onToggleComplete: (Boolean) -> Unit
+    habitWithLog: HabitWithLog,
+    onLogClick: () -> Unit,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit
 ) {
+    val habit = habitWithLog.habit
+    val log = habitWithLog.todayLog
     val roleColor = if (habit.role == HabitRole.OFFENSIVE) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
-            .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
-            .padding(16.dp),
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .border(1.dp, roleColor.copy(alpha = 0.2f), RoundedCornerShape(12.dp))
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            )
+            .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Box(
             modifier = Modifier
-                .size(32.dp)
-                .clip(CircleShape)
-                .background(if (habit.isCompleted) roleColor else Color.Transparent)
-                .border(2.dp, roleColor, CircleShape)
-                .clickable { onToggleComplete(!habit.isCompleted) },
-            contentAlignment = Alignment.Center
+                .clip(RoundedCornerShape(8.dp))
+                .clickable(onClick = onLogClick)
         ) {
-            if (habit.isCompleted) {
-                Icon(
-                    painter = rememberVectorPainter(Lucide.Check), 
-                    contentDescription = null, 
-                    tint = MaterialTheme.colorScheme.surfaceVariant, 
-                    modifier = Modifier.size(24.dp)
-                )
-            }
+            HabitProgressRing(
+                score = habit.score,
+                state = log?.state ?: HabitState.UNRECORDED,
+                measuredValue = log?.measuredValue,
+                isBoolean = habit.type == HabitType.BOOLEAN,
+                primaryColor = roleColor
+            )
         }
 
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 habit.name, 
-                style = MaterialTheme.typography.headlineMedium, 
+                style = MaterialTheme.typography.headlineSmall, 
                 color = MaterialTheme.colorScheme.onSurface
             )
             Text(
                 habit.role.name, 
-                style = MaterialTheme.typography.bodySmall, 
+                style = MaterialTheme.typography.labelSmall, 
                 color = roleColor
             )
         }
 
-        Column(horizontalAlignment = Alignment.End) {
-            Text(
-                "Bonus", 
-                style = MaterialTheme.typography.labelSmall, 
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+        Icon(
+            painter = rememberVectorPainter(Lucide.ChevronRight),
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
+            modifier = Modifier.size(20.dp)
+        )
+    }
+}
+
+@Composable
+fun HabitLoggingContent(
+    habit: Habit,
+    onRecord: (HabitState, Float?) -> Unit
+) {
+    var textValue by remember { mutableStateOf("") }
+    val roleColor = if (habit.role == HabitRole.OFFENSIVE) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(24.dp)
+            .navigationBarsPadding(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(20.dp)
+    ) {
+        Text(habit.name, style = MaterialTheme.typography.headlineMedium)
+        
+        if (habit.type == HabitType.MEASURABLE) {
+            Text("Meta: ${habit.targetValue.toInt()} ${habit.unit ?: ""}", color = roleColor)
+            OutlinedTextField(
+                value = textValue,
+                onValueChange = { if (it.all { char -> char.isDigit() }) textValue = it },
+                label = { Text("Valor alcanzado") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier = Modifier.fillMaxWidth()
             )
-            Text(
-                "+1", 
-                style = MaterialTheme.typography.bodyMedium, 
-                color = MaterialTheme.colorScheme.onSurface
-            )
+            
+            Button(
+                onClick = { onRecord(HabitState.COMPLETED, textValue.toFloatOrNull() ?: 0f) },
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = roleColor)
+            ) {
+                Text("Guardar Registro")
+            }
+            
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
         }
+
+        // Cuadrícula de acciones (2x2)
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                HabitStatusGridItem(
+                    label = "Completado",
+                    icon = Lucide.CircleCheck,
+                    color = MaterialTheme.colorScheme.primary,
+                    onClick = { onRecord(HabitState.COMPLETED, null) },
+                    modifier = Modifier.weight(1f)
+                )
+                HabitStatusGridItem(
+                    label = "Saltado",
+                    icon = Lucide.CircleMinus,
+                    color = MaterialTheme.colorScheme.secondary,
+                    onClick = { onRecord(HabitState.SKIPPED, null) },
+                    modifier = Modifier.weight(1f)
+                )
+            }
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                HabitStatusGridItem(
+                    label = "No Realizado",
+                    icon = Lucide.CircleX,
+                    color = MaterialTheme.colorScheme.error,
+                    onClick = { onRecord(HabitState.MISSED, null) },
+                    modifier = Modifier.weight(1f)
+                )
+                HabitStatusGridItem(
+                    label = "Borrar",
+                    icon = Lucide.Eraser,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    onClick = { onRecord(HabitState.UNRECORDED, null) },
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+        
+        Spacer(modifier = Modifier.height(8.dp))
+    }
+}
+
+@Composable
+fun EmptyHabitsView() {
+    Box(
+        modifier = Modifier.fillMaxWidth().padding(32.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            "No tienes hábitos registrados aún.", 
+            style = MaterialTheme.typography.bodyMedium, 
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+        )
     }
 }
 
 @Composable
 fun HabitsBottomNavBar(onNavigateToDashboard: () -> Unit, onNavigateToProfile: () -> Unit) {
-    NavigationBar(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)) {
+    NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
         NavigationBarItem(
             icon = { Icon(rememberVectorPainter(Lucide.ScrollText), null) }, 
-            label = { Text("Hábitos", style = MaterialTheme.typography.labelSmall) }, 
+            label = { Text("Hábitos") }, 
             selected = true, 
             onClick = {}
         )
         NavigationBarItem(
             icon = { Icon(rememberVectorPainter(Lucide.Swords), null) }, 
-            label = { Text("Combate", style = MaterialTheme.typography.labelSmall) }, 
+            label = { Text("Combate") }, 
             selected = false, 
             onClick = onNavigateToDashboard
         )
         NavigationBarItem(
             icon = { Icon(rememberVectorPainter(Lucide.User), null) }, 
-            label = { Text("Perfil", style = MaterialTheme.typography.labelSmall) }, 
+            label = { Text("Perfil") }, 
             selected = false, 
             onClick = onNavigateToProfile
-        )
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun HabitsScreenPreview() {
-    VitalOdysseyTheme {
-        HabitsScreenContent(
-            uiState = HabitsUiState(
-                habits = listOf(
-                    Habit(
-                        id = 1,
-                        name = "Hacer ejercicio",
-                        role = HabitRole.OFFENSIVE,
-                        type = HabitType.BOOLEAN,
-                        isCompleted = true
-                    ),
-                    Habit(
-                        id = 2,
-                        name = "Beber agua",
-                        role = HabitRole.DEFENSIVE,
-                        type = HabitType.BOOLEAN,
-                        isCompleted = false
-                    )
-                ),
-                offensiveCount = 1,
-                defensiveCount = 1
-            )
         )
     }
 }

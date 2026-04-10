@@ -9,63 +9,72 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import com.moises.vitalodyssey.domain.model.HabitRole
-import com.moises.vitalodyssey.domain.model.HabitType
+import com.moises.vitalodyssey.domain.model.*
+import com.moises.vitalodyssey.domain.usecase.*
+import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
+import java.time.LocalDate
 
 // Estado de la UI para la lista de hábitos
 data class HabitsUiState(
-    val habits: List<Habit> = emptyList(),
+    val habitsWithLogs: List<HabitWithLog> = emptyList(),
     val offensiveCount: Int = 0,
     val defensiveCount: Int = 0
 )
 
+data class HabitWithLog(
+    val habit: Habit,
+    val todayLog: HabitLog?
+)
+
 class HabitsViewModel(
-    private val habitDao: HabitDao
+    private val habitDao: HabitDao,
+    private val calculateScoreUseCase: CalculateHabitScoreUseCase,
+    private val evaluateStateUseCase: EvaluateHabitStateUseCase
 ) : ViewModel() {
 
-    // Observamos todos los hábitos y calculamos contadores para la UI
-    val uiState: StateFlow<HabitsUiState> = habitDao.getAllHabits().map { habits ->
-        HabitsUiState(
-            habits = habits,
-            offensiveCount = habits.count { it.role.name == "OFFENSIVE" },
-            defensiveCount = habits.count { it.role.name == "DEFENSIVE" }
-        )
+    private val today = LocalDate.now().toString()
+
+    val uiState: StateFlow<HabitsUiState> = habitDao.getAllHabits().flatMapLatest { habits ->
+        val flows = habits.map { habit ->
+            flow {
+                val log = habitDao.getLogForDate(habit.id, today)
+                emit(HabitWithLog(habit, log))
+            }
+        }
+        if (flows.isEmpty()) flowOf(HabitsUiState())
+        else combine(flows) { habitsWithLogs ->
+            val list = habitsWithLogs.toList()
+            HabitsUiState(
+                habitsWithLogs = list,
+                offensiveCount = list.count { it.habit.role == HabitRole.OFFENSIVE },
+                defensiveCount = list.count { it.habit.role == HabitRole.DEFENSIVE }
+            )
+        }
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = HabitsUiState()
     )
 
-    // Función para agregar un nuevo hábito
-    fun addHabit(name: String, role: HabitRole, type: HabitType) {
+    fun recordHabit(habit: Habit, state: HabitState, measuredValue: Float? = null) {
         viewModelScope.launch {
-            habitDao.insertHabit(
-                Habit(
-                    name = name,
-                    role = role,
-                    type = type
-                )
+            val newScore = calculateScoreUseCase(habit.score, state)
+            habitDao.updateHabit(habit.copy(score = newScore, isCompleted = state == HabitState.COMPLETED))
+            
+            val log = HabitLog(
+                habitId = habit.id,
+                date = today,
+                state = state,
+                measuredValue = measuredValue
             )
+            habitDao.insertLog(log)
         }
     }
 
-    // Función para marcar/desmarcar hábitos booleanos
-    fun toggleHabitStatus(habitId: Int, isCompleted: Boolean) {
-        viewModelScope.launch {
-            habitDao.updateHabitStatus(habitId, isCompleted)
-        }
-    }
-
-    // Función para actualizar el progreso de hábitos medibles
-    fun updateHabitProgress(habit: Habit, newValue: Float) {
-        viewModelScope.launch {
-            val isNowCompleted = if (habit.targetType.name == "AT_LEAST") {
-                newValue >= habit.targetValue
-            } else {
-                newValue <= habit.targetValue
-            }
-            habitDao.updateHabit(habit.copy(currentCount = newValue, isCompleted = isNowCompleted))
-        }
+    fun recordMeasurableHabit(habit: Habit, value: Float) {
+        val state = evaluateStateUseCase(habit.targetValue, value)
+        recordHabit(habit, state, value)
     }
 
     // Función para eliminar un hábito

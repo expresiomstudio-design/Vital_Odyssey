@@ -1,12 +1,7 @@
 package com.moises.vitalodyssey.data.local
 
 import androidx.room.TypeConverter
-import com.moises.vitalodyssey.domain.model.Frequency
-import com.moises.vitalodyssey.domain.model.HabitRole
-import com.moises.vitalodyssey.domain.model.HabitType
-import com.moises.vitalodyssey.domain.model.TargetType
-import com.moises.vitalodyssey.domain.model.BodyType
-import com.moises.vitalodyssey.domain.model.PlayerClass
+import com.moises.vitalodyssey.domain.model.*
 
 class HabitTypeConverters {
 
@@ -23,16 +18,16 @@ class HabitTypeConverters {
     fun toTargetType(value: String): TargetType = TargetType.valueOf(value)
 
     @TypeConverter
-    fun fromFrequency(value: Frequency): String = value.name
-
-    @TypeConverter
-    fun toFrequency(value: String): Frequency = Frequency.valueOf(value)
-
-    @TypeConverter
     fun fromHabitRole(value: HabitRole): String = value.name
 
     @TypeConverter
     fun toHabitRole(value: String): HabitRole = HabitRole.valueOf(value)
+
+    @TypeConverter
+    fun fromHabitState(value: HabitState): String = value.name
+
+    @TypeConverter
+    fun toHabitState(value: String): HabitState = HabitState.valueOf(value)
 
     @TypeConverter
     fun fromStringList(value: List<String>): String = value.joinToString(",")

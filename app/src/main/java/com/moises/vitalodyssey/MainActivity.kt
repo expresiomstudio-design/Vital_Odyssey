@@ -13,9 +13,11 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.moises.vitalodyssey.presentation.screens.*
 import com.moises.vitalodyssey.presentation.viewmodels.MainViewModel
 import com.moises.vitalodyssey.ui.theme.VitalOdysseyTheme
@@ -81,7 +83,33 @@ fun VitalOdysseyMainScreen(
             composable("habits") {
                 HabitsScreen(
                     onNavigateToDashboard = { navController.navigate("dashboard") },
-                    onNavigateToProfile = { navController.navigate("profile") }
+                    onNavigateToProfile = { navController.navigate("profile") },
+                    onNavigateToForm = { habitId ->
+                        navController.navigate("habit_form/$habitId")
+                    },
+                    onNavigateToTracking = { habitId ->
+                        navController.navigate("habit_tracking/$habitId")
+                    }
+                )
+            }
+            composable(
+                route = "habit_tracking/{habitId}",
+                arguments = listOf(navArgument("habitId") { type = NavType.IntType })
+            ) { backStackEntry ->
+                val habitId = backStackEntry.arguments?.getInt("habitId") ?: -1
+                HabitTrackingScreen(
+                    habitId = habitId,
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+            composable(
+                route = "habit_form/{habitId}",
+                arguments = listOf(navArgument("habitId") { type = NavType.IntType })
+            ) { backStackEntry ->
+                val habitId = backStackEntry.arguments?.getInt("habitId") ?: -1
+                HabitFormScreen(
+                    habitId = habitId,
+                    onNavigateBack = { navController.popBackStack() }
                 )
             }
             composable("profile") {

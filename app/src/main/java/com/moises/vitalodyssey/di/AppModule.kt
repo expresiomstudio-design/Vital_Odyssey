@@ -11,11 +11,16 @@ import com.moises.vitalodyssey.domain.repository.AuthRepository
 import com.moises.vitalodyssey.domain.repository.UserRepository
 import com.moises.vitalodyssey.domain.usecase.CalculateBattleTurnUseCase
 import com.moises.vitalodyssey.domain.usecase.CalculateBossStatsUseCase
+import com.moises.vitalodyssey.domain.usecase.CalculateHabitScoreUseCase
 import com.moises.vitalodyssey.domain.usecase.CalculatePlayerStatsUseCase
+import com.moises.vitalodyssey.domain.usecase.EvaluateHabitStateUseCase
+import com.moises.vitalodyssey.domain.usecase.EvaluateStrictStateUseCase
 import com.moises.vitalodyssey.domain.usecase.ProcessBattleResultUseCase
 import com.moises.vitalodyssey.presentation.viewmodels.DashboardViewModel
 import com.moises.vitalodyssey.presentation.viewmodels.ProfileViewModel
 import com.moises.vitalodyssey.presentation.viewmodels.HabitsViewModel
+import com.moises.vitalodyssey.presentation.viewmodels.HabitFormViewModel
+import com.moises.vitalodyssey.presentation.viewmodels.HabitTrackingViewModel
 import com.moises.vitalodyssey.presentation.viewmodels.AuthViewModel
 import com.moises.vitalodyssey.presentation.viewmodels.OnboardingViewModel
 import com.moises.vitalodyssey.presentation.viewmodels.MainViewModel
@@ -40,7 +45,9 @@ val appModule = module {
             androidContext(),
             AppDatabase::class.java,
             "vital_odyssey_db"
-        ).build()
+        )
+            .fallbackToDestructiveMigration()
+            .build()
     }
 
     // 3. DAOs
@@ -52,6 +59,9 @@ val appModule = module {
     factory { CalculateBattleTurnUseCase() }
     factory { CalculateBossStatsUseCase() }
     factory { ProcessBattleResultUseCase(get()) }
+    factory { CalculateHabitScoreUseCase() }
+    factory { EvaluateHabitStateUseCase() }
+    factory { EvaluateStrictStateUseCase() }
 
     // 5. ViewModels
     viewModel {
@@ -74,7 +84,25 @@ val appModule = module {
 
     viewModel {
         HabitsViewModel(
-            habitDao = get()
+            habitDao = get(),
+            calculateScoreUseCase = get(),
+            evaluateStateUseCase = get()
+        )
+    }
+
+    viewModel {
+        HabitFormViewModel(
+            habitDao = get(),
+            userRepository = get()
+        )
+    }
+
+    viewModel { (habitId: Int) ->
+        HabitTrackingViewModel(
+            habitId = habitId,
+            habitDao = get(),
+            calculateScoreUseCase = get(),
+            evaluateStrictStateUseCase = get()
         )
     }
 

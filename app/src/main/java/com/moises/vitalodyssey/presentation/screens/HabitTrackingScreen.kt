@@ -1,0 +1,515 @@
+package com.moises.vitalodyssey.presentation.screens
+
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.ChevronLeft
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.composables.icons.lucide.*
+import com.moises.vitalodyssey.domain.model.Habit
+import com.moises.vitalodyssey.domain.model.HabitLog
+import com.moises.vitalodyssey.domain.model.HabitState
+import com.moises.vitalodyssey.domain.model.HabitType
+import com.moises.vitalodyssey.presentation.components.HabitStatusGridItem
+import com.moises.vitalodyssey.presentation.viewmodels.HabitTrackingViewModel
+import com.moises.vitalodyssey.presentation.viewmodels.ScorePoint
+import org.koin.androidx.compose.koinViewModel
+import org.koin.core.parameter.parametersOf
+import java.time.LocalDate
+import java.time.format.TextStyle
+import java.util.Locale
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun HabitTrackingScreen(
+    habitId: Int,
+    viewModel: HabitTrackingViewModel = koinViewModel { parametersOf(habitId) },
+    onNavigateBack: () -> Unit
+) {
+    val uiState by viewModel.uiState.collectAsState()
+    var selectedLogForEdit by remember { mutableStateOf<HabitLog?>(null) }
+    var chartPeriod by remember { mutableStateOf("Día") }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(uiState.habit?.name ?: "Hábito", fontWeight = FontWeight.Bold) },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { /* Navegar a edición */ }) {
+                        Icon(Icons.Default.Edit, contentDescription = "Editar", tint = MaterialTheme.colorScheme.primary)
+                    }
+                    IconButton(onClick = { /* Diálogo eliminar */ }) {
+                        Icon(Icons.Default.Delete, contentDescription = "Eliminar", tint = MaterialTheme.colorScheme.error)
+                    }
+                }
+            )
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(24.dp)
+        ) {
+            WeekBar(
+                currentWeekStart = uiState.currentWeekStart,
+                logs = uiState.logs,
+                onDayClick = { date ->
+                    val log = uiState.logs.find { it.date == date.toString() } 
+                        ?: HabitLog(habitId = habitId, date = date.toString(), state = HabitState.UNRECORDED)
+                    selectedLogForEdit = log
+                },
+                onPreviousWeek = { viewModel.moveWeek(-1) },
+                onNextWeek = { viewModel.moveWeek(1) }
+            )
+
+            ScoreChartSection(
+                points = when(chartPeriod) {
+                    "Semana" -> viewModel.getWeeklyPoints()
+                    "Mes" -> viewModel.getMonthlyPoints()
+                    else -> viewModel.getDailyPoints()
+                },
+                selectedPeriod = chartPeriod,
+                onPeriodChange = { chartPeriod = it }
+            )
+
+            StatsSummary(uiState.habit, uiState.currentStreak)
+        }
+    }
+
+    selectedLogForEdit?.let { log ->
+        HabitEditLogDialog(
+            habitName = uiState.habit?.name ?: "Hábito",
+            log = log,
+            habitType = uiState.habit?.type ?: HabitType.BOOLEAN,
+            targetValue = uiState.habit?.targetValue ?: 0f,
+            unit = uiState.habit?.unit ?: "",
+            onDismiss = { selectedLogForEdit = null },
+            onConfirm = { state, value ->
+                viewModel.updateLogForDate(log.date, state, value)
+                selectedLogForEdit = null
+            }
+        )
+    }
+}
+
+@Composable
+fun WeekBar(
+    currentWeekStart: LocalDate,
+    logs: List<HabitLog>,
+    onDayClick: (LocalDate) -> Unit,
+    onPreviousWeek: () -> Unit,
+    onNextWeek: () -> Unit
+) {
+    val today = LocalDate.now()
+    val canMoveForward = currentWeekStart.plusDays(6) < today && currentWeekStart < today
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "${currentWeekStart.month.getDisplayName(TextStyle.FULL, Locale("es"))} ${currentWeekStart.year}",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Row {
+                IconButton(onClick = onPreviousWeek) { Icon(Icons.Default.ChevronLeft, null) }
+                IconButton(onClick = { }) { Icon(Icons.Default.CalendarMonth, null) }
+                IconButton(
+                    onClick = onNextWeek,
+                    enabled = canMoveForward
+                ) { 
+                    Icon(
+                        imageVector = Icons.Default.ChevronRight, 
+                        contentDescription = null,
+                        tint = if (canMoveForward) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                    ) 
+                }
+            }
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            (0..6).forEach { dayOffset ->
+                val date = currentWeekStart.plusDays(dayOffset.toLong())
+                val log = logs.find { it.date == date.toString() }
+                val isFuture = date > today
+                
+                DayItem(
+                    date = date,
+                    log = log,
+                    isToday = date == today,
+                    enabled = !isFuture,
+                    onClick = { if (!isFuture) onDayClick(date) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun DayItem(
+    date: LocalDate,
+    log: HabitLog?,
+    isToday: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit
+) {
+    val state = log?.state ?: HabitState.UNRECORDED
+    val color = when {
+        !enabled -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
+        state == HabitState.COMPLETED || state == HabitState.COMPLETED_BY_PERIOD -> MaterialTheme.colorScheme.primary
+        state == HabitState.MISSED -> MaterialTheme.colorScheme.error
+        state == HabitState.SKIPPED -> MaterialTheme.colorScheme.secondary
+        else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
+    }
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.clickable(enabled = enabled) { onClick() }
+    ) {
+        Text(
+            text = date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale("es")).first().toString(),
+            style = MaterialTheme.typography.labelSmall,
+            color = if (isToday) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(CircleShape)
+                .background(if (isToday) color.copy(alpha = 0.1f) else Color.Transparent)
+                .border(1.dp, if (isToday) color else Color.Transparent, CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                painter = rememberVectorPainter(
+                    when(state) {
+                        HabitState.COMPLETED, HabitState.COMPLETED_BY_PERIOD -> Lucide.CircleCheck
+                        HabitState.MISSED -> Lucide.CircleX
+                        HabitState.SKIPPED -> Lucide.CircleMinus
+                        else -> Lucide.Circle
+                    }
+                ),
+                contentDescription = null,
+                tint = if (enabled) color else color.copy(alpha = 0.3f),
+                modifier = Modifier.size(24.dp)
+            )
+        }
+        Text(
+            text = date.dayOfMonth.toString(), 
+            style = MaterialTheme.typography.bodySmall,
+            color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+        )
+    }
+}
+
+@Composable
+fun ScoreChartSection(
+    points: List<ScorePoint>,
+    selectedPeriod: String,
+    onPeriodChange: (String) -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Evolución del Score", fontWeight = FontWeight.Bold)
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    listOf("Día", "Semana", "Mes").forEach { period ->
+                        val isSelected = selectedPeriod == period
+                        Text(
+                            text = period,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent)
+                                .clickable { onPeriodChange(period) }
+                                .padding(horizontal = 8.dp, vertical = 4.dp),
+                            color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                            fontSize = 12.sp
+                        )
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(24.dp))
+            ScoreChart(points = points, modifier = Modifier.height(180.dp).fillMaxWidth())
+        }
+    }
+}
+
+@Composable
+fun ScoreChart(points: List<ScorePoint>, modifier: Modifier = Modifier) {
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val onSurfaceColor = MaterialTheme.colorScheme.onSurface
+    val surfaceColor = MaterialTheme.colorScheme.surface
+    val textMeasurer = rememberTextMeasurer()
+    val labelStyle = MaterialTheme.typography.labelSmall.copy(
+        color = onSurfaceColor.copy(alpha = 0.6f),
+        fontSize = 10.sp
+    )
+
+    Canvas(modifier = modifier) {
+        val width = size.width
+        val height = size.height
+        val paddingLeft = 40.dp.toPx()
+        val paddingBottom = 30.dp.toPx()
+        val chartWidth = width - paddingLeft
+        val chartHeight = height - paddingBottom
+        
+        val dashPathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f), 0f)
+        
+        for (i in 0..5) {
+            val yLevel = i * 20f
+            val yPos = chartHeight - (yLevel / 100f * chartHeight)
+            
+            drawText(
+                textMeasurer = textMeasurer,
+                text = "${yLevel.toInt()}%",
+                style = labelStyle,
+                topLeft = androidx.compose.ui.geometry.Offset(0f, yPos - 10.dp.toPx())
+            )
+            
+            if (i > 0) {
+                drawLine(
+                    color = onSurfaceColor.copy(alpha = 0.1f),
+                    start = androidx.compose.ui.geometry.Offset(paddingLeft, yPos),
+                    end = androidx.compose.ui.geometry.Offset(width, yPos),
+                    pathEffect = if (i < 5) dashPathEffect else null
+                )
+            }
+        }
+
+        drawLine(
+            color = onSurfaceColor.copy(alpha = 0.3f),
+            start = androidx.compose.ui.geometry.Offset(paddingLeft, chartHeight),
+            end = androidx.compose.ui.geometry.Offset(width, chartHeight),
+            strokeWidth = 2f
+        )
+        drawLine(
+            color = onSurfaceColor.copy(alpha = 0.3f),
+            start = androidx.compose.ui.geometry.Offset(paddingLeft, 0f),
+            end = androidx.compose.ui.geometry.Offset(paddingLeft, chartHeight),
+            strokeWidth = 2f
+        )
+
+        if (points.isEmpty()) return@Canvas
+
+        val stepX = if (points.size > 1) chartWidth / (points.size - 1) else 0f
+        val path = Path()
+        val pointOffsets = points.mapIndexed { index, point ->
+            val x = paddingLeft + (index * stepX)
+            val y = chartHeight - (point.score / 100f * chartHeight)
+            androidx.compose.ui.geometry.Offset(x, y)
+        }
+
+        pointOffsets.forEachIndexed { index, offset ->
+            if (index == 0) path.moveTo(offset.x, offset.y) else path.lineTo(offset.x, offset.y)
+        }
+
+        drawPath(
+            path = path,
+            color = primaryColor,
+            style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round)
+        )
+
+        pointOffsets.forEach { offset ->
+            drawCircle(color = surfaceColor, radius = 4.dp.toPx(), center = offset)
+            drawCircle(color = primaryColor, radius = 4.dp.toPx(), center = offset, style = Stroke(width = 2.dp.toPx()))
+        }
+
+        points.forEachIndexed { index, point ->
+            if (points.size > 10 && index % (points.size / 5) != 0) return@forEachIndexed
+            val label = point.date.dayOfMonth.toString()
+            val textLayoutResult = textMeasurer.measure(label, labelStyle)
+            drawText(
+                textLayoutResult = textLayoutResult,
+                topLeft = androidx.compose.ui.geometry.Offset(
+                    paddingLeft + (index * stepX) - (textLayoutResult.size.width / 2),
+                    chartHeight + 8.dp.toPx()
+                )
+            )
+        }
+    }
+}
+
+@Composable
+fun StatsSummary(habit: Habit?, currentStreak: Int) {
+    if (habit == null) return
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        StatCard(label = "Racha Actual", value = "$currentStreak d", icon = Lucide.Flame, modifier = Modifier.weight(1f))
+        StatCard(label = "Score Total", value = "${habit.score.toInt()}%", icon = Lucide.Trophy, modifier = Modifier.weight(1f))
+    }
+}
+
+@Composable
+fun StatCard(label: String, value: String, icon: ImageVector, modifier: Modifier = Modifier) {
+    Card(
+        modifier = modifier,
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(imageVector = icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(text = value, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+            Text(text = label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+        }
+    }
+}
+
+@Composable
+fun HabitEditLogDialog(
+    habitName: String,
+    log: HabitLog,
+    habitType: HabitType,
+    targetValue: Float,
+    unit: String,
+    onDismiss: () -> Unit,
+    onConfirm: (HabitState, Float?) -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Editar Registro: ${log.date}") },
+        text = {
+            HabitLoggingContent(
+                habitName = habitName,
+                habitType = habitType,
+                targetValue = targetValue,
+                unit = unit,
+                onRecord = { state, value ->
+                    onConfirm(state, value)
+                }
+            )
+        },
+        confirmButton = {},
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } }
+    )
+}
+
+@Composable
+fun HabitLoggingContent(
+    habitName: String,
+    habitType: HabitType,
+    targetValue: Float,
+    unit: String,
+    onRecord: (HabitState, Float?) -> Unit
+) {
+    var textValue by remember { mutableStateOf("") }
+    val primaryColor = MaterialTheme.colorScheme.primary
+
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(20.dp)
+    ) {
+        Text(habitName, style = MaterialTheme.typography.headlineSmall)
+        
+        if (habitType == HabitType.MEASURABLE) {
+            Text("Meta: ${targetValue.toInt()} $unit", color = primaryColor)
+            OutlinedTextField(
+                value = textValue,
+                onValueChange = { if (it.all { char -> char.isDigit() }) textValue = it },
+                label = { Text("Valor alcanzado") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier = Modifier.fillMaxWidth()
+            )
+            
+            Button(
+                onClick = { onRecord(HabitState.COMPLETED, textValue.toFloatOrNull() ?: 0f) },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Guardar Registro")
+            }
+            
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+        }
+
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                HabitStatusGridItem(
+                    label = "Completado",
+                    icon = Lucide.CircleCheck,
+                    color = MaterialTheme.colorScheme.primary,
+                    onClick = { onRecord(HabitState.COMPLETED, null) },
+                    modifier = Modifier.weight(1f)
+                )
+                HabitStatusGridItem(
+                    label = "Saltado",
+                    icon = Lucide.CircleMinus,
+                    color = MaterialTheme.colorScheme.secondary,
+                    onClick = { onRecord(HabitState.SKIPPED, null) },
+                    modifier = Modifier.weight(1f)
+                )
+            }
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                HabitStatusGridItem(
+                    label = "No Realizado",
+                    icon = Lucide.CircleX,
+                    color = MaterialTheme.colorScheme.error,
+                    onClick = { onRecord(HabitState.MISSED, null) },
+                    modifier = Modifier.weight(1f)
+                )
+                HabitStatusGridItem(
+                    label = "Borrar",
+                    icon = Lucide.Eraser,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    onClick = { onRecord(HabitState.UNRECORDED, null) },
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+    }
+}
