@@ -10,7 +10,8 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import com.moises.vitalodyssey.domain.model.*
-import com.moises.vitalodyssey.domain.usecase.*
+import com.moises.vitalodyssey.domain.usecase.EvaluateHabitStateUseCase
+import com.moises.vitalodyssey.domain.usecase.RecalculateHabitScoresUseCase
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -29,8 +30,8 @@ data class HabitWithLog(
 
 class HabitsViewModel(
     private val habitDao: HabitDao,
-    private val calculateScoreUseCase: CalculateHabitScoreUseCase,
-    private val evaluateStateUseCase: EvaluateHabitStateUseCase
+    private val evaluateStateUseCase: EvaluateHabitStateUseCase,
+    private val recalculateHabitScoresUseCase: RecalculateHabitScoresUseCase
 ) : ViewModel() {
 
     private val today = LocalDate.now().toString()
@@ -59,9 +60,6 @@ class HabitsViewModel(
 
     fun recordHabit(habit: Habit, state: HabitState, measuredValue: Float? = null) {
         viewModelScope.launch {
-            val newScore = calculateScoreUseCase(habit.score, state)
-            habitDao.updateHabit(habit.copy(score = newScore, isCompleted = state == HabitState.COMPLETED))
-            
             val log = HabitLog(
                 habitId = habit.id,
                 date = today,
@@ -69,11 +67,21 @@ class HabitsViewModel(
                 measuredValue = measuredValue
             )
             habitDao.insertLog(log)
+            
+            // Recalcular todo el historial para asegurar consistencia
+            recalculateHabitScoresUseCase(habit.id)
         }
     }
 
     fun recordMeasurableHabit(habit: Habit, value: Float) {
-        val state = evaluateStateUseCase(habit.targetValue, value)
+        // En una implementación real, aquí se consultaría el total acumulado del periodo
+        // Por ahora usamos value como input directo
+        val state = evaluateStateUseCase(
+            targetValue = habit.targetValue, 
+            input = value, 
+            isCumulative = habit.isCumulative,
+            currentPeriodTotal = 0f // TODO: Consultar total real del periodo en el DAO
+        )
         recordHabit(habit, state, value)
     }
 

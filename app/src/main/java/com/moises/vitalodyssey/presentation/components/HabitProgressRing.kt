@@ -48,7 +48,11 @@ fun HabitProgressRing(
             state == HabitState.UNRECORDED -> "?"
             state == HabitState.SKIPPED -> "-"
             isBoolean && state == HabitState.COMPLETED -> "✓"
-            !isBoolean && measuredValue != null -> {
+            state == HabitState.CONTRIBUTED && measuredValue != null -> {
+                val value = if (measuredValue % 1 == 0f) measuredValue.toInt().toString() else measuredValue.toString()
+                "+$value"
+            }
+            !isBoolean && (state == HabitState.COMPLETED || state == HabitState.COMPLETED_BY_PERIOD) && measuredValue != null -> {
                 val value = if (measuredValue % 1 == 0f) measuredValue.toInt().toString() else measuredValue.toString()
                 value
             }
@@ -59,8 +63,12 @@ fun HabitProgressRing(
             text = contentText,
             style = MaterialTheme.typography.bodyLarge.copy(
                 fontWeight = FontWeight.Bold,
-                fontSize = if (contentText.length > 2) 12.sp else 18.sp,
-                color = if (state != HabitState.UNRECORDED) primaryColor else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                fontSize = if (contentText.length > 2) 10.sp else if (contentText.length > 1) 14.sp else 18.sp,
+                color = when (state) {
+                    HabitState.UNRECORDED -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                    HabitState.CONTRIBUTED -> primaryColor // Color positivo
+                    else -> primaryColor
+                }
             )
         )
     }

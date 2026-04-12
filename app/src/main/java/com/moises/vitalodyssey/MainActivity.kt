@@ -99,6 +99,7 @@ fun VitalOdysseyMainScreen(
                 val habitId = backStackEntry.arguments?.getInt("habitId") ?: -1
                 HabitTrackingScreen(
                     habitId = habitId,
+                    onNavigateToEdit = { id -> navController.navigate("habit_form/$id") },
                     onNavigateBack = { navController.popBackStack() }
                 )
             }

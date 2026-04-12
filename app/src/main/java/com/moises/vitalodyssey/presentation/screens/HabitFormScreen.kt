@@ -12,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -62,8 +63,8 @@ fun HabitFormScreen(
                     }
                 },
                 actions = {
-                    TextButton(onClick = { viewModel.saveHabit() }) {
-                        Text("GUARDAR", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                    IconButton(onClick = { viewModel.saveHabit() }) {
+                        Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -81,7 +82,7 @@ fun HabitFormScreen(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            // 1. Selector de Tipo (Digital Relic Cards)
+            // 1. Selector de Tipo
             Text("Tipo de Hábito", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 TypeCard(
@@ -144,20 +145,51 @@ fun HabitFormScreen(
 
             // 4. Campos Dinámicos para Medibles
             if (uiState.type == HabitType.MEASURABLE) {
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    OutlinedTextField(
-                        value = uiState.targetValue.toString(),
-                        onValueChange = { it.toFloatOrNull()?.let { v -> viewModel.onTargetValueChange(v) } },
-                        label = { Text("Meta") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.weight(1f)
-                    )
-                    OutlinedTextField(
-                        value = uiState.unit,
-                        onValueChange = { viewModel.onUnitChange(it) },
-                        label = { Text("Unidad (Ej: Km)") },
-                        modifier = Modifier.weight(1f)
-                    )
+                val isPeriodic = uiState.frequencyType == "WEEKLY" || uiState.frequencyType == "MONTHLY"
+
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        OutlinedTextField(
+                            value = uiState.targetValueInput,
+                            onValueChange = { viewModel.onTargetValueChange(it) },
+                            label = { Text(if (uiState.isCumulative) "Meta Total Periodo" else "Meta por Sesión") },
+                            placeholder = { Text(if (uiState.isCumulative) "Ej: 15.0" else "Ej: 5.0") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            modifier = Modifier.weight(1f)
+                        )
+                        OutlinedTextField(
+                            value = uiState.unit,
+                            onValueChange = { viewModel.onUnitChange(it) },
+                            label = { Text("Unidad (Ej: Km)") },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+
+                    if (isPeriodic) {
+                        Text("Modo de Seguimiento", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                            SegmentedButton(
+                                selected = !uiState.isCumulative,
+                                onClick = { viewModel.onIsCumulativeChange(false) },
+                                shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+                                label = { Text("Por Repetición", fontSize = 12.sp) }
+                            )
+                            SegmentedButton(
+                                selected = uiState.isCumulative,
+                                onClick = { viewModel.onIsCumulativeChange(true) },
+                                shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+                                label = { Text("Total Acumulado", fontSize = 12.sp) }
+                            )
+                        }
+                        Text(
+                            text = if (uiState.isCumulative)
+                                "Las cantidades registradas se sumarán hasta llegar a la meta."
+                            else
+                                "Cada vez que alcances la meta contará como una repetición.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
 
@@ -165,23 +197,41 @@ fun HabitFormScreen(
             FrequencySelector(
                 type = uiState.frequencyType,
                 target = uiState.frequencyTarget,
+                isCumulative = uiState.isCumulative,
+                isMeasurable = uiState.type == HabitType.MEASURABLE,
                 onTypeChange = { viewModel.onFrequencyTypeChange(it) },
                 onTargetChange = { viewModel.onFrequencyTargetChange(it) }
             )
 
-            // 6. Botón Eliminar
+            // 6. Botón Guardar Principal
+            Button(
+                onClick = { viewModel.saveHabit() },
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+            ) {
+                Icon(Icons.Default.Save, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("GUARDAR HÁBITO", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            }
+
+            // 7. Botón Eliminar
             if (uiState.isEditMode) {
-                Spacer(modifier = Modifier.height(24.dp))
                 Button(
                     onClick = { showDeleteDialog = true },
                     modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.1f), contentColor = MaterialTheme.colorScheme.error)
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.1f), 
+                        contentColor = MaterialTheme.colorScheme.error
+                    )
                 ) {
                     Icon(Icons.Default.Delete, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("ELIMINAR HÁBITO")
                 }
             }
+            
+            Spacer(modifier = Modifier.height(32.dp))
         }
     }
 
@@ -214,7 +264,6 @@ fun TypeCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val borderColor = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
     val alpha = if (enabled) 1f else 0.4f
 
     Box(
@@ -271,11 +320,15 @@ fun borderStroke(width: androidx.compose.ui.unit.Dp, color: Color) = androidx.co
 fun FrequencySelector(
     type: String,
     target: Int,
+    isCumulative: Boolean,
+    isMeasurable: Boolean,
     onTypeChange: (String) -> Unit,
     onTargetChange: (Int) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val options = listOf("DAILY", "WEEKLY", "MONTHLY", "INTERVAL")
+    val allOptions = listOf("DAILY", "WEEKLY", "MONTHLY", "INTERVAL")
+    val options = if (isMeasurable) allOptions.filter { it != "INTERVAL" } else allOptions
+    
     val labelMap = mapOf("DAILY" to "Diario", "WEEKLY" to "Semanal", "MONTHLY" to "Mensual", "INTERVAL" to "Intervalo")
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -310,30 +363,38 @@ fun FrequencySelector(
             }
         }
 
-        when (type) {
-            "WEEKLY", "MONTHLY" -> {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("¿Cuántas veces por ${if (type == "WEEKLY") "semana" else "mes"}?")
-                    OutlinedTextField(
-                        value = target.toString(),
-                        onValueChange = { it.toIntOrNull()?.let { v -> onTargetChange(v) } },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.width(80.dp)
-                    )
+        if (!isCumulative) {
+            when (type) {
+                "WEEKLY", "MONTHLY" -> {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text("¿Cuántas veces por ${if (type == "WEEKLY") "semana" else "mes"}?")
+                        OutlinedTextField(
+                            value = target.toString(),
+                            onValueChange = { it.toIntOrNull()?.let { v -> onTargetChange(v) } },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier.width(80.dp)
+                        )
+                    }
+                }
+                "INTERVAL" -> {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text("Repetir cada")
+                        OutlinedTextField(
+                            value = target.toString(),
+                            onValueChange = { it.toIntOrNull()?.let { v -> onTargetChange(v) } },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier.width(80.dp)
+                        )
+                        Text("días")
+                    }
                 }
             }
-            "INTERVAL" -> {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("Repetir cada")
-                    OutlinedTextField(
-                        value = target.toString(),
-                        onValueChange = { it.toIntOrNull()?.let { v -> onTargetChange(v) } },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.width(80.dp)
-                    )
-                    Text("días")
-                }
-            }
+        } else if (isMeasurable && (type == "WEEKLY" || type == "MONTHLY")) {
+            Text(
+                text = "Meta total a cumplir durante ${if (type == "WEEKLY") "la semana" else "el mes"}.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.primary
+            )
         }
     }
 }

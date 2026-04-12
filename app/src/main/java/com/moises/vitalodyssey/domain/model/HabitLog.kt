@@ -23,5 +23,6 @@ data class HabitLog(
     val habitId: Int,
     val date: String, // Formato YYYY-MM-DD
     val state: HabitState,
-    val measuredValue: Float? = null
+    val measuredValue: Float? = null,
+    val currentScore: Float = 0f
 )

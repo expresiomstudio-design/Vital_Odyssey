@@ -16,6 +16,7 @@ import com.moises.vitalodyssey.domain.usecase.CalculatePlayerStatsUseCase
 import com.moises.vitalodyssey.domain.usecase.EvaluateHabitStateUseCase
 import com.moises.vitalodyssey.domain.usecase.EvaluateStrictStateUseCase
 import com.moises.vitalodyssey.domain.usecase.ProcessBattleResultUseCase
+import com.moises.vitalodyssey.domain.usecase.RecalculateHabitScoresUseCase
 import com.moises.vitalodyssey.presentation.viewmodels.DashboardViewModel
 import com.moises.vitalodyssey.presentation.viewmodels.ProfileViewModel
 import com.moises.vitalodyssey.presentation.viewmodels.HabitsViewModel
@@ -46,6 +47,7 @@ val appModule = module {
             AppDatabase::class.java,
             "vital_odyssey_db"
         )
+            .addMigrations(AppDatabase.MIGRATION_3_4, AppDatabase.MIGRATION_4_5)
             .fallbackToDestructiveMigration()
             .build()
     }
@@ -62,6 +64,7 @@ val appModule = module {
     factory { CalculateHabitScoreUseCase() }
     factory { EvaluateHabitStateUseCase() }
     factory { EvaluateStrictStateUseCase() }
+    factory { RecalculateHabitScoresUseCase(get(), get(), get(), get()) }
 
     // 5. ViewModels
     viewModel {
@@ -85,15 +88,16 @@ val appModule = module {
     viewModel {
         HabitsViewModel(
             habitDao = get(),
-            calculateScoreUseCase = get(),
-            evaluateStateUseCase = get()
+            evaluateStateUseCase = get(),
+            recalculateHabitScoresUseCase = get()
         )
     }
 
     viewModel {
         HabitFormViewModel(
             habitDao = get(),
-            userRepository = get()
+            userRepository = get(),
+            recalculateHabitScoresUseCase = get()
         )
     }
 
@@ -101,8 +105,9 @@ val appModule = module {
         HabitTrackingViewModel(
             habitId = habitId,
             habitDao = get(),
-            calculateScoreUseCase = get(),
-            evaluateStrictStateUseCase = get()
+            userRepository = get(),
+            evaluateStrictStateUseCase = get(),
+            recalculateHabitScoresUseCase = get()
         )
     }
 

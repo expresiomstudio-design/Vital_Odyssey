@@ -11,6 +11,7 @@ import com.moises.vitalodyssey.domain.model.HabitRole
 import com.moises.vitalodyssey.domain.model.HabitType
 import com.moises.vitalodyssey.domain.model.TargetType
 import com.moises.vitalodyssey.domain.repository.UserRepository
+import com.moises.vitalodyssey.domain.usecase.RecalculateHabitScoresUseCase
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.util.UUID
@@ -22,10 +23,11 @@ data class HabitFormUiState(
     val role: HabitRole = HabitRole.OFFENSIVE,
     val type: HabitType = HabitType.BOOLEAN,
     val unit: String = "",
-    val targetValue: Float = 1f,
+    val targetValueInput: String = "", // Usamos String para el input de la UI
     val targetType: TargetType = TargetType.AT_LEAST,
     val frequencyType: String = "DAILY",
     val frequencyTarget: Int = 1,
+    val isCumulative: Boolean = false,
     val startDate: String = "",
     val isEditMode: Boolean = false,
     val isLoading: Boolean = false,
@@ -34,7 +36,8 @@ data class HabitFormUiState(
 
 class HabitFormViewModel(
     private val habitDao: HabitDao,
-    private val userRepository: UserRepository
+    private val userRepository: UserRepository,
+    private val recalculateHabitScoresUseCase: RecalculateHabitScoresUseCase
 ) : ViewModel() {
 
     var uiState by mutableStateOf(HabitFormUiState())
@@ -54,10 +57,11 @@ class HabitFormViewModel(
                     role = it.role,
                     type = it.type,
                     unit = it.unit ?: "",
-                    targetValue = it.targetValue,
+                    targetValueInput = if (it.targetValue % 1 == 0f) it.targetValue.toInt().toString() else it.targetValue.toString(),
                     targetType = it.targetType,
                     frequencyType = it.frequencyType,
                     frequencyTarget = it.frequencyTarget,
+                    isCumulative = it.isCumulative,
                     startDate = it.startDate,
                     isEditMode = true,
                     isLoading = false
@@ -75,12 +79,25 @@ class HabitFormViewModel(
         }
     }
     fun onUnitChange(unit: String) { uiState = uiState.copy(unit = unit) }
-    fun onTargetValueChange(value: Float) { uiState = uiState.copy(targetValue = value) }
+    
+    fun onTargetValueChange(input: String) {
+        // Validación estricta
+        val sanitized = input.replace(",", ".")
+        val dotCount = sanitized.count { it == '.' }
+        
+        if (dotCount <= 1 && sanitized.all { it.isDigit() || it == '.' }) {
+            uiState = uiState.copy(targetValueInput = sanitized)
+        }
+    }
+    
     fun onFrequencyTypeChange(type: String) { uiState = uiState.copy(frequencyType = type) }
     fun onFrequencyTargetChange(target: Int) { uiState = uiState.copy(frequencyTarget = target) }
+    fun onIsCumulativeChange(isCumulative: Boolean) { uiState = uiState.copy(isCumulative = isCumulative) }
 
     fun saveHabit() {
         viewModelScope.launch {
+            val targetValue = uiState.targetValueInput.toFloatOrNull() ?: 1f
+            
             val habit = Habit(
                 id = uiState.id,
                 firestoreId = if (uiState.id == 0) UUID.randomUUID().toString() else "",
@@ -89,18 +106,23 @@ class HabitFormViewModel(
                 role = uiState.role,
                 type = uiState.type,
                 unit = if (uiState.type == HabitType.MEASURABLE) uiState.unit else null,
-                targetValue = uiState.targetValue,
+                targetValue = targetValue,
                 targetType = uiState.targetType,
                 frequencyType = uiState.frequencyType,
                 frequencyTarget = uiState.frequencyTarget,
+                isCumulative = uiState.isCumulative,
                 startDate = if (uiState.id == 0) LocalDate.now().toString() else uiState.startDate
             )
 
-            if (uiState.isEditMode) {
+            val finalId = if (uiState.isEditMode) {
                 habitDao.updateHabit(habit)
+                habit.id
             } else {
-                habitDao.insertHabit(habit)
+                habitDao.insertHabit(habit).toInt()
             }
+            
+            // Forzar recálculo inicial o tras edición de meta
+            recalculateHabitScoresUseCase(finalId)
             
             userRepository.syncHabitsToCloud()
             uiState = uiState.copy(isSaved = true)

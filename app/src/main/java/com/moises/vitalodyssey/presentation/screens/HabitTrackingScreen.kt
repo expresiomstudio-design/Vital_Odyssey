@@ -45,7 +45,9 @@ import com.moises.vitalodyssey.presentation.viewmodels.HabitTrackingViewModel
 import com.moises.vitalodyssey.presentation.viewmodels.ScorePoint
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
+import java.time.Instant
 import java.time.LocalDate
+import java.time.ZoneId
 import java.time.format.TextStyle
 import java.util.Locale
 
@@ -54,11 +56,14 @@ import java.util.Locale
 fun HabitTrackingScreen(
     habitId: Int,
     viewModel: HabitTrackingViewModel = koinViewModel { parametersOf(habitId) },
+    onNavigateToEdit: (Int) -> Unit,
     onNavigateBack: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var selectedLogForEdit by remember { mutableStateOf<HabitLog?>(null) }
     var chartPeriod by remember { mutableStateOf("Día") }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var showDatePicker by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -70,10 +75,10 @@ fun HabitTrackingScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { /* Navegar a edición */ }) {
+                    IconButton(onClick = { onNavigateToEdit(habitId) }) {
                         Icon(Icons.Default.Edit, contentDescription = "Editar", tint = MaterialTheme.colorScheme.primary)
                     }
-                    IconButton(onClick = { /* Diálogo eliminar */ }) {
+                    IconButton(onClick = { showDeleteDialog = true }) {
                         Icon(Icons.Default.Delete, contentDescription = "Eliminar", tint = MaterialTheme.colorScheme.error)
                     }
                 }
@@ -97,7 +102,8 @@ fun HabitTrackingScreen(
                     selectedLogForEdit = log
                 },
                 onPreviousWeek = { viewModel.moveWeek(-1) },
-                onNextWeek = { viewModel.moveWeek(1) }
+                onNextWeek = { viewModel.moveWeek(1) },
+                onCalendarClick = { showDatePicker = true }
             )
 
             ScoreChartSection(
@@ -114,12 +120,57 @@ fun HabitTrackingScreen(
         }
     }
 
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("¿Eliminar Hábito?") },
+            text = { Text("Esta acción no se puede deshacer y perderás todo el historial de este hábito.") },
+            confirmButton = {
+                TextButton(onClick = { 
+                    viewModel.deleteHabit()
+                    onNavigateBack()
+                }) {
+                    Text("ELIMINAR", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("CANCELAR")
+                }
+            }
+        )
+    }
+
+    if (showDatePicker) {
+        val datePickerState = rememberDatePickerState(
+            initialSelectedDateMillis = uiState.currentWeekStart.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        )
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    datePickerState.selectedDateMillis?.let {
+                        val selectedDate = Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalDate()
+                        viewModel.setWeekFromDate(selectedDate)
+                    }
+                    showDatePicker = false
+                }) { Text("OK") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) { Text("CANCELAR") }
+            }
+        ) {
+            DatePicker(state = datePickerState)
+        }
+    }
+
     selectedLogForEdit?.let { log ->
         HabitEditLogDialog(
             habitName = uiState.habit?.name ?: "Hábito",
             log = log,
             habitType = uiState.habit?.type ?: HabitType.BOOLEAN,
             targetValue = uiState.habit?.targetValue ?: 0f,
+            isCumulative = uiState.habit?.isCumulative ?: false,
             unit = uiState.habit?.unit ?: "",
             onDismiss = { selectedLogForEdit = null },
             onConfirm = { state, value ->
@@ -136,10 +187,12 @@ fun WeekBar(
     logs: List<HabitLog>,
     onDayClick: (LocalDate) -> Unit,
     onPreviousWeek: () -> Unit,
-    onNextWeek: () -> Unit
+    onNextWeek: () -> Unit,
+    onCalendarClick: () -> Unit
 ) {
     val today = LocalDate.now()
-    val canMoveForward = currentWeekStart.plusDays(6) < today && currentWeekStart < today
+    val weekEnd = currentWeekStart.plusDays(6)
+    val canMoveForward = weekEnd.isBefore(today)
 
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
@@ -154,7 +207,7 @@ fun WeekBar(
             )
             Row {
                 IconButton(onClick = onPreviousWeek) { Icon(Icons.Default.ChevronLeft, null) }
-                IconButton(onClick = { }) { Icon(Icons.Default.CalendarMonth, null) }
+                IconButton(onClick = onCalendarClick) { Icon(Icons.Default.CalendarMonth, null) }
                 IconButton(
                     onClick = onNextWeek,
                     enabled = canMoveForward
@@ -367,7 +420,17 @@ fun ScoreChart(points: List<ScorePoint>, modifier: Modifier = Modifier) {
         }
 
         points.forEachIndexed { index, point ->
-            if (points.size > 10 && index % (points.size / 5) != 0) return@forEachIndexed
+            // Aseguramos que se etiquete el primer punto, el último, y puntos intermedios si hay muchos
+            val shouldShowLabel = when {
+                points.size <= 10 -> true
+                index == 0 -> true
+                index == points.size - 1 -> true
+                index % (points.size / 5) == 0 -> true
+                else -> false
+            }
+            
+            if (!shouldShowLabel) return@forEachIndexed
+
             val label = point.date.dayOfMonth.toString()
             val textLayoutResult = textMeasurer.measure(label, labelStyle)
             drawText(
@@ -416,6 +479,7 @@ fun HabitEditLogDialog(
     log: HabitLog,
     habitType: HabitType,
     targetValue: Float,
+    isCumulative: Boolean,
     unit: String,
     onDismiss: () -> Unit,
     onConfirm: (HabitState, Float?) -> Unit
@@ -428,6 +492,7 @@ fun HabitEditLogDialog(
                 habitName = habitName,
                 habitType = habitType,
                 targetValue = targetValue,
+                isCumulative = isCumulative,
                 unit = unit,
                 onRecord = { state, value ->
                     onConfirm(state, value)
@@ -444,6 +509,7 @@ fun HabitLoggingContent(
     habitName: String,
     habitType: HabitType,
     targetValue: Float,
+    isCumulative: Boolean,
     unit: String,
     onRecord: (HabitState, Float?) -> Unit
 ) {
@@ -458,20 +524,25 @@ fun HabitLoggingContent(
         Text(habitName, style = MaterialTheme.typography.headlineSmall)
         
         if (habitType == HabitType.MEASURABLE) {
-            Text("Meta: ${targetValue.toInt()} $unit", color = primaryColor)
+            val label = if (isCumulative) "Suma a la meta: ${targetValue.toInt()} $unit" else "Meta: ${targetValue.toInt()} $unit"
+            Text(label, color = primaryColor)
             OutlinedTextField(
                 value = textValue,
-                onValueChange = { if (it.all { char -> char.isDigit() }) textValue = it },
-                label = { Text("Valor alcanzado") },
+                onValueChange = { if (it.all { char -> char.isDigit() || char == '.' }) textValue = it },
+                label = { Text(if (isCumulative) "Cantidad a sumar" else "Valor alcanzado") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 modifier = Modifier.fillMaxWidth()
             )
             
             Button(
-                onClick = { onRecord(HabitState.COMPLETED, textValue.toFloatOrNull() ?: 0f) },
+                onClick = { 
+                    val value = textValue.toFloatOrNull() ?: 0f
+                    val state = if (isCumulative && value > 0) HabitState.CONTRIBUTED else HabitState.COMPLETED
+                    onRecord(state, value) 
+                },
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Guardar Registro")
+                Text(if (isCumulative) "Sumar Aportación" else "Guardar Registro")
             }
             
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))

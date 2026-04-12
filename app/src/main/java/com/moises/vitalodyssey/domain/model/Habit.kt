@@ -7,7 +7,7 @@ import androidx.room.PrimaryKey
 enum class HabitType { BOOLEAN, MEASURABLE }
 enum class TargetType { AT_LEAST, AT_MOST }
 enum class HabitRole { OFFENSIVE, DEFENSIVE }
-enum class HabitState { UNRECORDED, COMPLETED, SKIPPED, MISSED, COMPLETED_BY_PERIOD }
+enum class HabitState { UNRECORDED, COMPLETED, SKIPPED, MISSED, COMPLETED_BY_PERIOD, CONTRIBUTED }
 
 @Entity(tableName = "habits_table")
 data class Habit(
@@ -22,6 +22,7 @@ data class Habit(
 
     // TIPO DE HÁBITO
     val type: HabitType,
+    val isCumulative: Boolean = false,
 
     // PROPIEDADES MEDIBLES (Solo se usan si type == MEASURABLE)
     val unit: String? = null,     // Ej: "Km", "Minutos", "Vasos"

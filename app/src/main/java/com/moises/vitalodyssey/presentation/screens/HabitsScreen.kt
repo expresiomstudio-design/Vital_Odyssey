@@ -235,21 +235,27 @@ fun HabitLoggingContent(
         Text(habit.name, style = MaterialTheme.typography.headlineMedium)
         
         if (habit.type == HabitType.MEASURABLE) {
-            Text("Meta: ${habit.targetValue.toInt()} ${habit.unit ?: ""}", color = roleColor)
+            val label = if (habit.isCumulative) "Suma a la meta: ${habit.targetValue.toInt()} ${habit.unit ?: ""}" else "Meta: ${habit.targetValue.toInt()} ${habit.unit ?: ""}"
+            Text(label, color = roleColor)
+            
             OutlinedTextField(
                 value = textValue,
-                onValueChange = { if (it.all { char -> char.isDigit() }) textValue = it },
-                label = { Text("Valor alcanzado") },
+                onValueChange = { if (it.all { char -> char.isDigit() || char == '.' }) textValue = it },
+                label = { Text(if (habit.isCumulative) "Cantidad a sumar" else "Valor alcanzado") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 modifier = Modifier.fillMaxWidth()
             )
             
             Button(
-                onClick = { onRecord(HabitState.COMPLETED, textValue.toFloatOrNull() ?: 0f) },
+                onClick = { 
+                    val value = textValue.toFloatOrNull() ?: 0f
+                    val state = if (habit.isCumulative && value > 0) HabitState.CONTRIBUTED else HabitState.COMPLETED
+                    onRecord(state, value) 
+                },
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(containerColor = roleColor)
             ) {
-                Text("Guardar Registro")
+                Text(if (habit.isCumulative) "Sumar Aportación" else "Guardar Registro")
             }
             
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
