@@ -44,19 +44,18 @@ fun HabitProgressRing(
             )
         }
 
-        val contentText = when {
-            state == HabitState.UNRECORDED -> "?"
-            state == HabitState.SKIPPED -> "-"
-            isBoolean && state == HabitState.COMPLETED -> "✓"
-            state == HabitState.CONTRIBUTED && measuredValue != null -> {
-                val value = if (measuredValue % 1 == 0f) measuredValue.toInt().toString() else measuredValue.toString()
-                "+$value"
+        val contentText = when (state) {
+            HabitState.UNRECORDED -> "?"
+            HabitState.SKIPPED -> "-"
+            HabitState.MISSED -> "X"
+            HabitState.COMPLETED, HabitState.COMPLETED_BY_PERIOD, HabitState.CONTRIBUTED -> {
+                if (isBoolean) "✓"
+                else {
+                    val value = measuredValue ?: 0f
+                    val formatted = if (value % 1 == 0f) value.toInt().toString() else value.toString()
+                    if (state == HabitState.CONTRIBUTED && value > 0) "+$formatted" else formatted
+                }
             }
-            !isBoolean && (state == HabitState.COMPLETED || state == HabitState.COMPLETED_BY_PERIOD) && measuredValue != null -> {
-                val value = if (measuredValue % 1 == 0f) measuredValue.toInt().toString() else measuredValue.toString()
-                value
-            }
-            else -> "?"
         }
 
         Text(

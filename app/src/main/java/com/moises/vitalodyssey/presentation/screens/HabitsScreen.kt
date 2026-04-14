@@ -264,19 +264,21 @@ fun HabitLoggingContent(
         // Cuadrícula de acciones (2x2)
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                HabitStatusGridItem(
-                    label = "Completado",
-                    icon = Lucide.CircleCheck,
-                    color = MaterialTheme.colorScheme.primary,
-                    onClick = { onRecord(HabitState.COMPLETED, null) },
-                    modifier = Modifier.weight(1f)
-                )
+                if (habit.type == HabitType.BOOLEAN) {
+                    HabitStatusGridItem(
+                        label = "Completado",
+                        icon = Lucide.CircleCheck,
+                        color = MaterialTheme.colorScheme.primary,
+                        onClick = { onRecord(HabitState.COMPLETED, null) },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
                 HabitStatusGridItem(
                     label = "Saltado",
                     icon = Lucide.CircleMinus,
                     color = MaterialTheme.colorScheme.secondary,
                     onClick = { onRecord(HabitState.SKIPPED, null) },
-                    modifier = Modifier.weight(1f)
+                    modifier = if (habit.type == HabitType.BOOLEAN) Modifier.weight(1f) else Modifier.fillMaxWidth()
                 )
             }
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {

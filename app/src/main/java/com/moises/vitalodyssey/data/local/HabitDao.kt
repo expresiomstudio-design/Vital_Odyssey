@@ -15,6 +15,9 @@ interface HabitDao {
     @Query("SELECT * FROM habits_table WHERE id = :id")
     suspend fun getHabitById(id: Int): Habit?
 
+    @Query("SELECT * FROM habits_table WHERE id = :id")
+    fun getHabitByIdFlow(id: Int): Flow<Habit?>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertHabit(habit: Habit): Long
 
@@ -23,6 +26,9 @@ interface HabitDao {
 
     @Delete
     suspend fun deleteHabit(habit: Habit)
+
+    @Delete
+    suspend fun deleteLog(log: HabitLog)
 
     @Query("UPDATE habits_table SET isCompleted = :completed WHERE id = :habitId")
     suspend fun updateHabitStatus(habitId: Int, completed: Boolean)

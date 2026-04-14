@@ -88,6 +88,7 @@ val appModule = module {
     viewModel {
         HabitsViewModel(
             habitDao = get(),
+            userRepository = get(),
             evaluateStateUseCase = get(),
             recalculateHabitScoresUseCase = get()
         )

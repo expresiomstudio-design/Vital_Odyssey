@@ -49,6 +49,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.TextStyle
+import java.time.temporal.IsoFields
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -61,7 +62,6 @@ fun HabitTrackingScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var selectedLogForEdit by remember { mutableStateOf<HabitLog?>(null) }
-    var chartPeriod by remember { mutableStateOf("Día") }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showDatePicker by remember { mutableStateOf(false) }
 
@@ -94,6 +94,7 @@ fun HabitTrackingScreen(
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
             WeekBar(
+                habit = uiState.habit,
                 currentWeekStart = uiState.currentWeekStart,
                 logs = uiState.logs,
                 onDayClick = { date ->
@@ -107,13 +108,12 @@ fun HabitTrackingScreen(
             )
 
             ScoreChartSection(
-                points = when(chartPeriod) {
-                    "Semana" -> viewModel.getWeeklyPoints()
-                    "Mes" -> viewModel.getMonthlyPoints()
-                    else -> viewModel.getDailyPoints()
-                },
-                selectedPeriod = chartPeriod,
-                onPeriodChange = { chartPeriod = it }
+                points = uiState.chartPoints,
+                selectedPeriod = uiState.selectedPeriod,
+                canMoveLeft = uiState.canMoveChartLeft,
+                canMoveRight = uiState.canMoveChartRight,
+                onPeriodChange = { viewModel.setChartPeriod(it) },
+                onMoveChart = { viewModel.moveChart(it) }
             )
 
             StatsSummary(uiState.habit, uiState.currentStreak)
@@ -183,6 +183,7 @@ fun HabitTrackingScreen(
 
 @Composable
 fun WeekBar(
+    habit: Habit?,
     currentWeekStart: LocalDate,
     logs: List<HabitLog>,
     onDayClick: (LocalDate) -> Unit,
@@ -233,6 +234,7 @@ fun WeekBar(
                 DayItem(
                     date = date,
                     log = log,
+                    habit = habit,
                     isToday = date == today,
                     enabled = !isFuture,
                     onClick = { if (!isFuture) onDayClick(date) }
@@ -246,6 +248,7 @@ fun WeekBar(
 fun DayItem(
     date: LocalDate,
     log: HabitLog?,
+    habit: Habit?,
     isToday: Boolean,
     enabled: Boolean,
     onClick: () -> Unit
@@ -256,40 +259,72 @@ fun DayItem(
         state == HabitState.COMPLETED || state == HabitState.COMPLETED_BY_PERIOD -> MaterialTheme.colorScheme.primary
         state == HabitState.MISSED -> MaterialTheme.colorScheme.error
         state == HabitState.SKIPPED -> MaterialTheme.colorScheme.secondary
+        state == HabitState.CONTRIBUTED -> MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
         else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
     }
+
+    val isMeasurable = habit?.type == HabitType.MEASURABLE
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier.clickable(enabled = enabled) { onClick() }
     ) {
+        // Indicador de "Hoy" (Flecha superior)
+        Box(
+            modifier = Modifier.height(16.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            if (isToday) {
+                Icon(
+                    imageVector = Lucide.ChevronDown,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(14.dp)
+                )
+            }
+        }
+
         Text(
-            text = date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale("es")).first().toString(),
+            text = date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale("es")).first().toString().uppercase(),
             style = MaterialTheme.typography.labelSmall,
-            color = if (isToday) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+            color = if (isToday) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+            fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal
         )
         Spacer(modifier = Modifier.height(4.dp))
         Box(
             modifier = Modifier
-                .size(40.dp)
-                .clip(CircleShape)
-                .background(if (isToday) color.copy(alpha = 0.1f) else Color.Transparent)
-                .border(1.dp, if (isToday) color else Color.Transparent, CircleShape),
+                .size(48.dp)
+                .clip(CircleShape),
             contentAlignment = Alignment.Center
         ) {
-            Icon(
-                painter = rememberVectorPainter(
-                    when(state) {
-                        HabitState.COMPLETED, HabitState.COMPLETED_BY_PERIOD -> Lucide.CircleCheck
-                        HabitState.MISSED -> Lucide.CircleX
-                        HabitState.SKIPPED -> Lucide.CircleMinus
-                        else -> Lucide.Circle
-                    }
-                ),
-                contentDescription = null,
-                tint = if (enabled) color else color.copy(alpha = 0.3f),
-                modifier = Modifier.size(24.dp)
-            )
+            val iconToDraw = when (state) {
+                HabitState.UNRECORDED -> Lucide.Circle
+                HabitState.SKIPPED -> Lucide.Minus
+                HabitState.MISSED -> Lucide.X
+                HabitState.COMPLETED, HabitState.COMPLETED_BY_PERIOD -> if (!isMeasurable) Lucide.Check else null
+                HabitState.CONTRIBUTED -> if (!isMeasurable) Lucide.Check else null
+                else -> null
+            }
+
+            if (iconToDraw != null) {
+                Icon(
+                    imageVector = iconToDraw,
+                    contentDescription = null,
+                    tint = if (enabled) color else color.copy(alpha = 0.3f),
+                    modifier = Modifier.size(32.dp)
+                )
+            } else if (isMeasurable && (state == HabitState.COMPLETED || state == HabitState.COMPLETED_BY_PERIOD || state == HabitState.CONTRIBUTED)) {
+                val value = log?.measuredValue ?: 0f
+                val formatted = if (value % 1 == 0f) value.toInt().toString() else value.toString()
+                val labelText = if (habit?.isCumulative == true && value > 0) "+$formatted" else formatted
+                
+                Text(
+                    text = labelText,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = if (enabled) color else color.copy(alpha = 0.3f)
+                )
+            }
         }
         Text(
             text = date.dayOfMonth.toString(), 
@@ -303,7 +338,10 @@ fun DayItem(
 fun ScoreChartSection(
     points: List<ScorePoint>,
     selectedPeriod: String,
-    onPeriodChange: (String) -> Unit
+    canMoveLeft: Boolean,
+    canMoveRight: Boolean,
+    onPeriodChange: (String) -> Unit,
+    onMoveChart: (Int) -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -316,8 +354,24 @@ fun ScoreChartSection(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Evolución del Score", fontWeight = FontWeight.Bold)
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("Evolución", fontWeight = FontWeight.Bold)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    IconButton(
+                        onClick = { onMoveChart(1) },
+                        enabled = canMoveLeft,
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Icon(
+                            imageVector = Lucide.ChevronLeft,
+                            contentDescription = "Anterior",
+                            modifier = Modifier.size(16.dp),
+                            tint = if (canMoveLeft) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                        )
+                    }
+                    
                     listOf("Día", "Semana", "Mes").forEach { period ->
                         val isSelected = selectedPeriod == period
                         Text(
@@ -331,16 +385,37 @@ fun ScoreChartSection(
                             fontSize = 12.sp
                         )
                     }
+
+                    IconButton(
+                        onClick = { onMoveChart(-1) },
+                        enabled = canMoveRight,
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Icon(
+                            imageVector = Lucide.ChevronRight,
+                            contentDescription = "Siguiente",
+                            modifier = Modifier.size(16.dp),
+                            tint = if (canMoveRight) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                        )
+                    }
                 }
             }
             Spacer(modifier = Modifier.height(24.dp))
-            ScoreChart(points = points, modifier = Modifier.height(180.dp).fillMaxWidth())
+            ScoreChart(
+                points = points, 
+                selectedPeriod = selectedPeriod,
+                modifier = Modifier.height(180.dp).fillMaxWidth()
+            )
         }
     }
 }
 
 @Composable
-fun ScoreChart(points: List<ScorePoint>, modifier: Modifier = Modifier) {
+fun ScoreChart(
+    points: List<ScorePoint>, 
+    selectedPeriod: String,
+    modifier: Modifier = Modifier
+) {
     val primaryColor = MaterialTheme.colorScheme.primary
     val onSurfaceColor = MaterialTheme.colorScheme.onSurface
     val surfaceColor = MaterialTheme.colorScheme.surface
@@ -396,10 +471,10 @@ fun ScoreChart(points: List<ScorePoint>, modifier: Modifier = Modifier) {
 
         if (points.isEmpty()) return@Canvas
 
-        val stepX = if (points.size > 1) chartWidth / (points.size - 1) else 0f
+        val stepX = if (points.size > 1) chartWidth / (points.size - 1) else chartWidth / 2
         val path = Path()
         val pointOffsets = points.mapIndexed { index, point ->
-            val x = paddingLeft + (index * stepX)
+            val x = if (points.size > 1) paddingLeft + (index * stepX) else paddingLeft + chartWidth / 2
             val y = chartHeight - (point.score / 100f * chartHeight)
             androidx.compose.ui.geometry.Offset(x, y)
         }
@@ -420,23 +495,20 @@ fun ScoreChart(points: List<ScorePoint>, modifier: Modifier = Modifier) {
         }
 
         points.forEachIndexed { index, point ->
-            // Aseguramos que se etiquete el primer punto, el último, y puntos intermedios si hay muchos
-            val shouldShowLabel = when {
-                points.size <= 10 -> true
-                index == 0 -> true
-                index == points.size - 1 -> true
-                index % (points.size / 5) == 0 -> true
-                else -> false
+            val label = when(selectedPeriod) {
+                "Día" -> point.date.dayOfMonth.toString()
+                "Semana" -> point.date.get(IsoFields.WEEK_OF_WEEK_BASED_YEAR).toString()
+                "Mes" -> point.date.month.getDisplayName(TextStyle.SHORT, Locale("es")).replaceFirstChar { it.uppercase() }
+                else -> point.date.dayOfMonth.toString()
             }
             
-            if (!shouldShowLabel) return@forEachIndexed
-
-            val label = point.date.dayOfMonth.toString()
             val textLayoutResult = textMeasurer.measure(label, labelStyle)
+            val xPosition = if (points.size > 1) paddingLeft + (index * stepX) else paddingLeft + chartWidth / 2
+            
             drawText(
                 textLayoutResult = textLayoutResult,
                 topLeft = androidx.compose.ui.geometry.Offset(
-                    paddingLeft + (index * stepX) - (textLayoutResult.size.width / 2),
+                    xPosition - (textLayoutResult.size.width / 2),
                     chartHeight + 8.dp.toPx()
                 )
             )
@@ -548,21 +620,24 @@ fun HabitLoggingContent(
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
         }
 
+        // Cuadrícula de acciones (2x2)
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                HabitStatusGridItem(
-                    label = "Completado",
-                    icon = Lucide.CircleCheck,
-                    color = MaterialTheme.colorScheme.primary,
-                    onClick = { onRecord(HabitState.COMPLETED, null) },
-                    modifier = Modifier.weight(1f)
-                )
+                if (habitType == HabitType.BOOLEAN) {
+                    HabitStatusGridItem(
+                        label = "Completado",
+                        icon = Lucide.CircleCheck,
+                        color = MaterialTheme.colorScheme.primary,
+                        onClick = { onRecord(HabitState.COMPLETED, null) },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
                 HabitStatusGridItem(
                     label = "Saltado",
                     icon = Lucide.CircleMinus,
                     color = MaterialTheme.colorScheme.secondary,
                     onClick = { onRecord(HabitState.SKIPPED, null) },
-                    modifier = Modifier.weight(1f)
+                    modifier = if (habitType == HabitType.BOOLEAN) Modifier.weight(1f) else Modifier.fillMaxWidth()
                 )
             }
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {

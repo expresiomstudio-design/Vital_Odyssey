@@ -20,7 +20,11 @@ data class HabitTrackingUiState(
     val currentWeekStart: LocalDate = LocalDate.now().minusDays(6), // Hoy a la derecha por defecto
     val currentStreak: Int = 0,
     val startDay: DayOfWeek = DayOfWeek.MONDAY,
-    val isLoading: Boolean = false
+    val isLoading: Boolean = false,
+    val canMoveChartLeft: Boolean = false,
+    val canMoveChartRight: Boolean = false,
+    val chartPoints: List<ScorePoint> = emptyList(),
+    val selectedPeriod: String = "Día"
 )
 
 data class ScorePoint(
@@ -39,6 +43,9 @@ class HabitTrackingViewModel(
     private val _uiState = MutableStateFlow(HabitTrackingUiState())
     val uiState: StateFlow<HabitTrackingUiState> = _uiState.asStateFlow()
 
+    private val _chartOffsetIndex = MutableStateFlow(0)
+    private val _chartPeriod = MutableStateFlow("Día")
+
     init {
         loadData()
     }
@@ -47,30 +54,52 @@ class HabitTrackingViewModel(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
             
-            val habitFlow = flow { emit(habitDao.getHabitById(habitId)) }
+            val habitFlow = habitDao.getHabitByIdFlow(habitId).filterNotNull()
             val logsFlow = habitDao.getLogsForHabit(habitId)
             val profileFlow = userRepository.getUserProfile()
 
-            combine(habitFlow, logsFlow, profileFlow) { habit, logs, profile ->
+            combine(habitFlow, logsFlow, profileFlow, _chartOffsetIndex, _chartPeriod) { habit, logs, profile, offset, period ->
                 val startDay = DayOfWeek.valueOf(profile?.startOfWeek ?: "MONDAY")
                 
-                // Ahora el historial se lee directamente de los logs guardados
                 val history = logs.sortedBy { it.date }.map { 
                     ScorePoint(LocalDate.parse(it.date), it.currentScore) 
                 }
                 val streak = calculateCurrentStreak(habit, logs, startDay)
                 
-                _uiState.update { 
-                    it.copy(
-                        habit = habit,
-                        logs = logs,
-                        scoreHistory = history,
-                        currentStreak = streak,
-                        startDay = startDay,
-                        isLoading = false
-                    )
+                val groupedPoints = when(period) {
+                    "Semana" -> history
+                        .groupBy { it.date.with(TemporalAdjusters.previousOrSame(startDay)) }
+                        .map { (weekStart, points) -> ScorePoint(weekStart, points.maxOf { it.score }) }
+                        .sortedBy { it.date }
+                    "Mes" -> history
+                        .groupBy { it.date.withDayOfMonth(1) }
+                        .map { (monthStart, points) -> ScorePoint(monthStart, points.maxOf { it.score }) }
+                        .sortedBy { it.date }
+                    else -> history
                 }
-            }.collect()
+
+                val end = (groupedPoints.size - offset).coerceIn(0, groupedPoints.size)
+                val start = (end - 12).coerceIn(0, groupedPoints.size)
+                val paginatedPoints = groupedPoints.subList(start, end)
+                
+                // Devolvemos el nuevo estado para ser colectado
+                _uiState.value.copy(
+                    habit = habit,
+                    logs = logs,
+                    scoreHistory = history,
+                    currentStreak = streak,
+                    startDay = startDay,
+                    isLoading = false,
+                    canMoveChartLeft = (groupedPoints.size - offset) > 12,
+                    canMoveChartRight = offset > 0,
+                    chartPoints = paginatedPoints,
+                    selectedPeriod = period
+                )
+            }
+            .flowOn(kotlinx.coroutines.Dispatchers.Default) // Ejecutar cálculos fuera del Main Thread
+            .collect { newState ->
+                _uiState.update { newState }
+            }
         }
     }
 
@@ -151,6 +180,23 @@ class HabitTrackingViewModel(
         _uiState.update { it.copy(currentWeekStart = date.minusDays(6)) }
     }
 
+    fun moveChart(direction: Int) {
+        val newOffset = _chartOffsetIndex.value + direction
+        if (newOffset >= 0) {
+            _chartOffsetIndex.value = newOffset
+        }
+    }
+
+    fun setChartPeriod(period: String) {
+        _chartPeriod.value = period
+        _chartOffsetIndex.value = 0
+    }
+
+    // Funciones obsoletas eliminadas/refactorizadas internamente en combine
+    fun getDailyPoints(): List<ScorePoint> = _uiState.value.chartPoints
+    fun getWeeklyPoints(): List<ScorePoint> = _uiState.value.chartPoints
+    fun getMonthlyPoints(): List<ScorePoint> = _uiState.value.chartPoints
+
     fun deleteHabit() {
         viewModelScope.launch {
             habitDao.getHabitById(habitId)?.let {
@@ -172,28 +218,38 @@ class HabitTrackingViewModel(
                 val allLogs = habitDao.getLogsForHabit(habitId).first()
                 val date = LocalDate.parse(dateStr)
                 val periodRange = getPeriodRange(date, habit.frequencyType, startDay)
-                
-                val currentTotal = allLogs.filter {
-                    val logDate = LocalDate.parse(it.date)
-                    it.date != dateStr && !logDate.isBefore(periodRange.first) && !logDate.isAfter(periodRange.second)
-                }.sumOf { it.measuredValue?.toDouble() ?: 0.0 }.toFloat()
 
-                val totalWithNewInput = currentTotal + input
-                
-                if (totalWithNewInput >= habit.targetValue) {
-                    finalState = HabitState.COMPLETED
-                    // Auto-completar el resto del periodo
-                    autoCompletePeriod(habit, periodRange, allLogs, dateStr)
-                } else if (input > 0) {
-                    finalState = HabitState.CONTRIBUTED
+                // Solo calculamos el estado automáticamente si se está introduciendo un valor (desde el TextField)
+                if (value != null) {
+                    val currentTotal = allLogs.filter {
+                        val logDate = LocalDate.parse(it.date)
+                        it.date != dateStr && !logDate.isBefore(periodRange.first) && !logDate.isAfter(periodRange.second)
+                    }.sumOf { it.measuredValue?.toDouble() ?: 0.0 }.toFloat()
+
+                    val totalWithNewInput = currentTotal + input
+                    
+                    if (totalWithNewInput >= habit.targetValue) {
+                        finalState = HabitState.COMPLETED
+                        autoCompletePeriod(habit, periodRange, allLogs, dateStr)
+                    } else {
+                        finalState = if (input > 0) HabitState.CONTRIBUTED else HabitState.UNRECORDED
+                        undoAutoCompletePeriod(periodRange, allLogs, dateStr)
+                    }
+                } else {
+                    // Si es manual (Missed, Skipped, etc.), respetamos el estado pero revertimos autocompletado
+                    undoAutoCompletePeriod(periodRange, allLogs, dateStr)
                 }
             }
 
             val existingLog = habitDao.getLogForDate(habitId, dateStr)
-            val newLog = existingLog?.copy(state = finalState, measuredValue = value) 
-                ?: HabitLog(habitId = habitId, date = dateStr, state = finalState, measuredValue = value)
             
-            habitDao.insertLog(newLog)
+            if (finalState == HabitState.UNRECORDED) {
+                existingLog?.let { habitDao.deleteLog(it) }
+            } else {
+                val newLog = existingLog?.copy(state = finalState, measuredValue = value) 
+                    ?: HabitLog(habitId = habitId, date = dateStr, state = finalState, measuredValue = value)
+                habitDao.insertLog(newLog)
+            }
             
             // Recalcular todo el historial cronológicamente
             recalculateHabitScoresUseCase(habitId)
@@ -220,6 +276,21 @@ class HabitTrackingViewModel(
         }
     }
 
+    private suspend fun undoAutoCompletePeriod(range: Pair<LocalDate, LocalDate>, logs: List<HabitLog>, currentUpdateDate: String) {
+        val logsByDate = logs.associateBy { it.date }
+        var check = range.first
+        while (!check.isAfter(range.second)) {
+            val dStr = check.toString()
+            if (dStr != currentUpdateDate) {
+                val log = logsByDate[dStr]
+                if (log?.state == HabitState.COMPLETED_BY_PERIOD) {
+                    habitDao.deleteLog(log)
+                }
+            }
+            check = check.plusDays(1)
+        }
+    }
+
     private fun getPeriodRange(
         date: LocalDate, 
         frequency: String,
@@ -237,25 +308,5 @@ class HabitTrackingViewModel(
             )
             else -> Pair(date, date)
         }
-    }
-
-    // Funciones para la gráfica
-    fun getDailyPoints(): List<ScorePoint> = _uiState.value.scoreHistory
-
-    fun getWeeklyPoints(): List<ScorePoint> {
-        val startDay = _uiState.value.startDay
-        return _uiState.value.scoreHistory
-            .groupBy { it.date.with(TemporalAdjusters.previousOrSame(startDay)) }
-            .map { (weekStart, points) ->
-                ScorePoint(weekStart, points.maxOf { it.score })
-            }
-    }
-
-    fun getMonthlyPoints(): List<ScorePoint> {
-        return _uiState.value.scoreHistory
-            .groupBy { it.date.withDayOfMonth(1) }
-            .map { (monthStart, points) ->
-                ScorePoint(monthStart, points.maxOf { it.score })
-            }
     }
 }
