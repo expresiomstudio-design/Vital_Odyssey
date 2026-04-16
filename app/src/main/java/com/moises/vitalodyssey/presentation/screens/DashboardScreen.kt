@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.composables.icons.lucide.*
+import com.moises.vitalodyssey.presentation.components.VitalOdysseyBottomNavBar
 import com.moises.vitalodyssey.presentation.viewmodels.DashboardUiState
 import com.moises.vitalodyssey.presentation.viewmodels.DashboardViewModel
 import com.moises.vitalodyssey.ui.theme.OdysseyTheme
@@ -37,7 +38,6 @@ import org.koin.androidx.compose.koinViewModel
 @Composable
 fun DashboardScreen(
     viewModel: DashboardViewModel = koinViewModel(),
-    onNavigateToHabits: () -> Unit = {},
     onNavigateToProfile: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -45,7 +45,6 @@ fun DashboardScreen(
     DashboardScreenContent(
         uiState = uiState,
         onSimulateAttack = { viewModel.simulateAttack() },
-        onNavigateToHabits = onNavigateToHabits,
         onNavigateToProfile = onNavigateToProfile
     )
 }
@@ -54,12 +53,10 @@ fun DashboardScreen(
 fun DashboardScreenContent(
     uiState: DashboardUiState,
     onSimulateAttack: () -> Unit,
-    onNavigateToHabits: () -> Unit,
     onNavigateToProfile: () -> Unit
 ) {
     Scaffold(
         topBar = { TopProfileBar(uiState, onNavigateToProfile) },
-        bottomBar = { BottomNavBar(onNavigateToHabits, onNavigateToProfile) },
         containerColor = MaterialTheme.colorScheme.surface
     ) { padding ->
         Column(
@@ -87,7 +84,10 @@ fun TopProfileBar(
     onNavigateToProfile: () -> Unit
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(16.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .statusBarsPadding()
+            .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
@@ -335,30 +335,6 @@ fun ActionSection(state: DashboardUiState, onAttack: () -> Unit) {
     }
 }
 
-@Composable
-fun BottomNavBar(onNavigateToHabits: () -> Unit, onNavigateToProfile: () -> Unit) {
-    NavigationBar(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)) {
-        NavigationBarItem(
-            icon = { Icon(rememberVectorPainter(Lucide.ScrollText), null) }, 
-            label = { Text("Hábitos", style = MaterialTheme.typography.labelSmall) }, 
-            selected = false, 
-            onClick = onNavigateToHabits
-        )
-        NavigationBarItem(
-            icon = { Icon(rememberVectorPainter(Lucide.Swords), null) }, 
-            label = { Text("Combate", style = MaterialTheme.typography.labelSmall) }, 
-            selected = true, 
-            onClick = {}
-        )
-        NavigationBarItem(
-            icon = { Icon(rememberVectorPainter(Lucide.User), null) }, 
-            label = { Text("Perfil", style = MaterialTheme.typography.labelSmall) }, 
-            selected = false, 
-            onClick = onNavigateToProfile
-        )
-    }
-}
-
 @Preview(showBackground = true, backgroundColor = 0xFF121416)
 @Composable
 fun DashboardScreenPreview() {
@@ -376,7 +352,6 @@ fun DashboardScreenPreview() {
                 combatLog = "El dragón ruge ferozmente."
             ),
             onSimulateAttack = {},
-            onNavigateToHabits = {},
             onNavigateToProfile = {}
         )
     }

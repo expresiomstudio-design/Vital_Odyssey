@@ -26,6 +26,7 @@ import com.composables.icons.lucide.*
 import com.moises.vitalodyssey.domain.model.*
 import com.moises.vitalodyssey.presentation.components.HabitProgressRing
 import com.moises.vitalodyssey.presentation.components.HabitStatusGridItem
+import com.moises.vitalodyssey.presentation.components.VitalOdysseyBottomNavBar
 import com.moises.vitalodyssey.presentation.viewmodels.HabitWithLog
 import com.moises.vitalodyssey.presentation.viewmodels.HabitsUiState
 import com.moises.vitalodyssey.presentation.viewmodels.HabitsViewModel
@@ -37,8 +38,6 @@ import org.koin.androidx.compose.koinViewModel
 @Composable
 fun HabitsScreen(
     viewModel: HabitsViewModel = koinViewModel(),
-    onNavigateToDashboard: () -> Unit = {},
-    onNavigateToProfile: () -> Unit = {},
     onNavigateToForm: (Int) -> Unit = {},
     onNavigateToTracking: (Int) -> Unit = {}
 ) {
@@ -49,8 +48,6 @@ fun HabitsScreen(
 
     HabitsScreenContent(
         uiState = uiState,
-        onNavigateToDashboard = onNavigateToDashboard,
-        onNavigateToProfile = onNavigateToProfile,
         onHabitLogClick = { selectedHabitForLog = it },
         onHabitClick = { onNavigateToTracking(it.id) },
         onAddHabit = { onNavigateToForm(-1) },
@@ -83,21 +80,19 @@ fun HabitsScreen(
 @Composable
 fun HabitsScreenContent(
     uiState: HabitsUiState,
-    onNavigateToDashboard: () -> Unit = {},
-    onNavigateToProfile: () -> Unit = {},
     onHabitLogClick: (Habit) -> Unit = {},
     onHabitClick: (Habit) -> Unit = {},
     onAddHabit: () -> Unit = {},
     onEditHabit: (Habit) -> Unit = {}
 ) {
-    Scaffold(
-        bottomBar = { HabitsBottomNavBar(onNavigateToDashboard, onNavigateToProfile) },
-        containerColor = MaterialTheme.colorScheme.surface
-    ) { padding ->
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+    ) {
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
@@ -317,26 +312,3 @@ fun EmptyHabitsView() {
     }
 }
 
-@Composable
-fun HabitsBottomNavBar(onNavigateToDashboard: () -> Unit, onNavigateToProfile: () -> Unit) {
-    NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
-        NavigationBarItem(
-            icon = { Icon(rememberVectorPainter(Lucide.ScrollText), null) }, 
-            label = { Text("Hábitos") }, 
-            selected = true, 
-            onClick = {}
-        )
-        NavigationBarItem(
-            icon = { Icon(rememberVectorPainter(Lucide.Swords), null) }, 
-            label = { Text("Combate") }, 
-            selected = false, 
-            onClick = onNavigateToDashboard
-        )
-        NavigationBarItem(
-            icon = { Icon(rememberVectorPainter(Lucide.User), null) }, 
-            label = { Text("Perfil") }, 
-            selected = false, 
-            onClick = onNavigateToProfile
-        )
-    }
-}

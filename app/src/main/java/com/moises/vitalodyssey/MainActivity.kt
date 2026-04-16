@@ -18,6 +18,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import androidx.navigation.compose.currentBackStackEntryAsState
+import com.moises.vitalodyssey.presentation.components.VitalOdysseyBottomNavBar
 import com.moises.vitalodyssey.presentation.screens.*
 import com.moises.vitalodyssey.presentation.viewmodels.MainViewModel
 import com.moises.vitalodyssey.ui.theme.VitalOdysseyTheme
@@ -31,7 +33,7 @@ class MainActivity : ComponentActivity() {
             VitalOdysseyTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
+                    color = MaterialTheme.colorScheme.background,
                 ) {
                     VitalOdysseyMainScreen()
                 }
@@ -66,24 +68,19 @@ fun VitalOdysseyMainScreen(
                 )
             }
             composable("onboarding") {
-                OnboardingScreen(
-                    onFinish = {
-                        navController.navigate("dashboard") {
-                            popUpTo("onboarding") { inclusive = true }
-                        }
+                OnboardingScreen {
+                    navController.navigate("main_container") {
+                        popUpTo("onboarding") { inclusive = true }
                     }
-                )
+                }
             }
-            composable("dashboard") {
-                DashboardScreen(
-                    onNavigateToHabits = { navController.navigate("habits") },
-                    onNavigateToProfile = { navController.navigate("profile") }
-                )
-            }
-            composable("habits") {
-                HabitsScreen(
-                    onNavigateToDashboard = { navController.navigate("dashboard") },
-                    onNavigateToProfile = { navController.navigate("profile") },
+            composable("main_container") {
+                MainContainerScreen(
+                    onLogout = {
+                        navController.navigate("login") {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    },
                     onNavigateToForm = { habitId ->
                         navController.navigate("habit_form/$habitId")
                     },
@@ -92,6 +89,7 @@ fun VitalOdysseyMainScreen(
                     }
                 )
             }
+            // Mantenemos estas rutas fuera del contenedor para que ocupen toda la pantalla sin la BottomBar
             composable(
                 route = "habit_tracking/{habitId}",
                 arguments = listOf(navArgument("habitId") { type = NavType.IntType })
@@ -113,14 +111,61 @@ fun VitalOdysseyMainScreen(
                     onNavigateBack = { navController.popBackStack() }
                 )
             }
-            composable("profile") {
-                ProfileScreen(
-                    onNavigateBack = { navController.popBackStack() },
-                    onNavigateToLogin = {
-                        navController.navigate("login") {
-                            popUpTo(0) { inclusive = true }
+            // Redirecciones de compatibilidad por si se navega a rutas antiguas
+            composable("dashboard") { LaunchedEffect(Unit) { navController.navigate("main_container") } }
+            composable("habits") { LaunchedEffect(Unit) { navController.navigate("main_container") } }
+            composable("profile") { LaunchedEffect(Unit) { navController.navigate("main_container") } }
+        }
+    }
+}
+
+@Composable
+fun MainContainerScreen(
+    onLogout: () -> Unit,
+    onNavigateToForm: (Int) -> Unit,
+    onNavigateToTracking: (Int) -> Unit
+) {
+    val innerNavController = rememberNavController()
+    val navBackStackEntry by innerNavController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
+
+    Scaffold(
+        bottomBar = {
+            VitalOdysseyBottomNavBar(
+                currentRoute = currentRoute,
+                onNavigate = { targetRoute ->
+                    if (currentRoute != targetRoute) {
+                        innerNavController.navigate(targetRoute) {
+                            popUpTo(innerNavController.graph.startDestinationId) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
                         }
                     }
+                }
+            )
+        }
+    ) { paddingValues ->
+        NavHost(
+            navController = innerNavController,
+            startDestination = "dashboard",
+            modifier = Modifier.padding(paddingValues)
+        ) {
+            composable("dashboard") {
+                DashboardScreen(
+                    onNavigateToProfile = { innerNavController.navigate("profile") }
+                )
+            }
+            composable("habits") {
+                HabitsScreen(
+                    onNavigateToForm = onNavigateToForm,
+                    onNavigateToTracking = onNavigateToTracking
+                )
+            }
+            composable("profile") {
+                ProfileScreen(
+                    onNavigateToLogin = onLogout
                 )
             }
         }

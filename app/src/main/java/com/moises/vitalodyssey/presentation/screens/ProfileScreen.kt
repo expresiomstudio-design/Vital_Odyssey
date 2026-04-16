@@ -7,7 +7,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -30,6 +29,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.composables.icons.lucide.*
 import com.moises.vitalodyssey.presentation.viewmodels.ProfileUiState
@@ -44,7 +44,6 @@ enum class ProfileSection {
 @Composable
 fun ProfileScreen(
     viewModel: ProfileViewModel = koinViewModel(),
-    onNavigateBack: () -> Unit = {},
     onNavigateToLogin: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -64,13 +63,6 @@ fun ProfileScreen(
         uiState = uiState,
         currentSection = currentSection,
         onSectionChange = { currentSection = it },
-        onNavigateBack = {
-            if (currentSection == ProfileSection.MAIN_MENU) {
-                onNavigateBack()
-            } else {
-                currentSection = ProfileSection.MAIN_MENU
-            }
-        },
         onLogout = { viewModel.logout() },
         onDeleteAccount = { viewModel.deleteAccount() },
         onUpdateName = { viewModel.updateName(it) },
@@ -85,65 +77,43 @@ fun ProfileScreenContent(
     uiState: ProfileUiState,
     currentSection: ProfileSection,
     onSectionChange: (ProfileSection) -> Unit,
-    onNavigateBack: () -> Unit = {},
     onLogout: () -> Unit = {},
     onDeleteAccount: () -> Unit = {},
     onUpdateName: (String) -> Unit = {},
     onUpdateStartOfWeek: (String) -> Unit = {},
     onUpdateCutoffTime: (String) -> Unit = {}
 ) {
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = when (currentSection) {
-                            ProfileSection.MAIN_MENU -> "Perfil del Héroe"
-                            ProfileSection.ACCOUNT -> "Gestión de Cuenta"
-                            ProfileSection.SETTINGS -> "Ajustes de Odisea"
-                        },
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Volver"
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
+    Box(
+        modifier = Modifier.fillMaxSize()
+    ) {
+        AnimatedContent(
+            targetState = currentSection,
+            transitionSpec = {
+                fadeIn() togetherWith fadeOut()
+            },
+            label = "ProfileSectionTransition"
+        ) { section ->
+            when (section) {
+                ProfileSection.MAIN_MENU -> MainMenuContent(uiState, onSectionChange)
+                ProfileSection.ACCOUNT -> AccountSectionContent(
+                    uiState = uiState,
+                    onLogout = onLogout,
+                    onDeleteAccount = onDeleteAccount,
+                    onUpdateName = onUpdateName,
+                    onBack = { onSectionChange(ProfileSection.MAIN_MENU) }
                 )
-            )
-        },
-        containerColor = MaterialTheme.colorScheme.surface
-    ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-        ) {
-            AnimatedContent(
-                targetState = currentSection,
-                transitionSpec = {
-                    fadeIn() togetherWith fadeOut()
-                },
-                label = "ProfileSectionTransition"
-            ) { section ->
-                when (section) {
-                    ProfileSection.MAIN_MENU -> MainMenuContent(uiState, onSectionChange)
-                    ProfileSection.ACCOUNT -> AccountSectionContent(uiState, onLogout, onDeleteAccount, onUpdateName)
-                    ProfileSection.SETTINGS -> SettingsSectionContent(uiState, onUpdateStartOfWeek, onUpdateCutoffTime)
-                }
+                ProfileSection.SETTINGS -> SettingsSectionContent(
+                    uiState = uiState,
+                    onUpdateStartOfWeek = onUpdateStartOfWeek,
+                    onUpdateCutoffTime = onUpdateCutoffTime,
+                    onBack = { onSectionChange(ProfileSection.MAIN_MENU) }
+                )
             }
         }
-    }
 
-    if (uiState.showDeleteSuccess) {
-        DeleteSuccessDialog(uiState.deleteProgress)
+        if (uiState.showDeleteSuccess) {
+            DeleteSuccessDialog(uiState.deleteProgress)
+        }
     }
 }
 
@@ -158,10 +128,11 @@ fun MainMenuContent(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .statusBarsPadding()
             .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Spacer(modifier = Modifier.height(18.dp))
+        Spacer(modifier = Modifier.height(32.dp))
 
         // Header: Avatar, Nombre y Profesión
         Box(contentAlignment = Alignment.Center) {
@@ -375,12 +346,14 @@ fun ProfileMenuCell(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AccountSectionContent(
     uiState: ProfileUiState,
     onLogout: () -> Unit,
     onDeleteAccount: () -> Unit,
-    onUpdateName: (String) -> Unit = {}
+    onUpdateName: (String) -> Unit = {},
+    onBack: () -> Unit
 ) {
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
@@ -421,100 +394,115 @@ fun AccountSectionContent(
         )
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-            .verticalScroll(rememberScrollState())
-    ) {
-        Text(
-            text = "DATOS DEL PERFIL",
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-            modifier = Modifier.padding(bottom = 12.dp)
-        )
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("GESTIÓN DE CUENTA", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
+            )
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(16.dp)
+                .verticalScroll(rememberScrollState())
+        ) {
+            Text(
+                text = "DATOS DEL PERFIL",
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                modifier = Modifier.padding(bottom = 12.dp)
+            )
 
-        OutlinedTextField(
-            value = nameText,
-            onValueChange = { nameText = it },
-            label = { Text("Nombre del Héroe") },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-            trailingIcon = {
-                if (hasNameChanged) {
-                    TextButton(onClick = { onUpdateName(nameText) }) {
-                        Text("GUARDAR", fontWeight = FontWeight.Bold)
+            OutlinedTextField(
+                value = nameText,
+                onValueChange = { nameText = it },
+                label = { Text("Nombre del Héroe") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                trailingIcon = {
+                    if (hasNameChanged) {
+                        TextButton(onClick = { onUpdateName(nameText) }) {
+                            Text("GUARDAR", fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            OutlinedTextField(
+                value = uiState.playerEmail,
+                onValueChange = {},
+                label = { Text("Correo Electrónico") },
+                modifier = Modifier.fillMaxWidth(),
+                readOnly = true,
+                enabled = !isGoogleUser,
+                trailingIcon = {
+                    if (isGoogleUser) {
+                        Text("G ", fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary)
+                    }
+                }
+            )
+
+            if (!isGoogleUser) {
+                Row(
+                    modifier = Modifier.padding(top = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    TextButton(onClick = { /* Abrir diálogo cambio email */ }) {
+                        Text("Cambiar Email")
+                    }
+                    TextButton(onClick = { /* Abrir diálogo cambio pass */ }) {
+                        Text("Cambiar Contraseña")
                     }
                 }
             }
-        )
 
-        Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(40.dp))
 
-        OutlinedTextField(
-            value = uiState.playerEmail,
-            onValueChange = {},
-            label = { Text("Correo Electrónico") },
-            modifier = Modifier.fillMaxWidth(),
-            readOnly = true,
-            enabled = !isGoogleUser,
-            trailingIcon = {
-                if (isGoogleUser) {
-                    Text("G ", fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary)
-                }
-            }
-        )
+            Text(
+                text = "GESTIÓN DE CUENTA",
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.error.copy(alpha = 0.7f),
+                modifier = Modifier.padding(bottom = 12.dp)
+            )
 
-        if (!isGoogleUser) {
-            Row(
-                modifier = Modifier.padding(top = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            Card(
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.1f)),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.2f)),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth()
             ) {
-                TextButton(onClick = { /* Abrir diálogo cambio email */ }) {
-                    Text("Cambiar Email")
-                }
-                TextButton(onClick = { /* Abrir diálogo cambio pass */ }) {
-                    Text("Cambiar Contraseña")
+                Column {
+                    ListItem(
+                        headlineContent = { Text("Cerrar Sesión", color = MaterialTheme.colorScheme.error) },
+                        leadingContent = { Icon(rememberVectorPainter(Lucide.LogOut), null, tint = MaterialTheme.colorScheme.error) },
+                        modifier = Modifier.clickable { showLogoutDialog = true },
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                    )
+                    HorizontalDivider(color = MaterialTheme.colorScheme.error.copy(alpha = 0.1f))
+                    ListItem(
+                        headlineContent = { Text("Eliminar Cuenta y Datos", color = MaterialTheme.colorScheme.error) },
+                        leadingContent = { Icon(rememberVectorPainter(Lucide.Trash2), null, tint = MaterialTheme.colorScheme.error) },
+                        supportingContent = { Text("Borrado definitivo conforme a RGPD", style = MaterialTheme.typography.labelSmall) },
+                        modifier = Modifier.clickable { showDeleteDialog = true },
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                    )
                 }
             }
+            
+            Spacer(modifier = Modifier.height(32.dp))
         }
-
-        Spacer(modifier = Modifier.height(40.dp))
-
-        Text(
-            text = "GESTIÓN DE CUENTA",
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.error.copy(alpha = 0.7f),
-            modifier = Modifier.padding(bottom = 12.dp)
-        )
-
-        Card(
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.1f)),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.2f)),
-            shape = RoundedCornerShape(12.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column {
-                ListItem(
-                    headlineContent = { Text("Cerrar Sesión", color = MaterialTheme.colorScheme.error) },
-                    leadingContent = { Icon(rememberVectorPainter(Lucide.LogOut), null, tint = MaterialTheme.colorScheme.error) },
-                    modifier = Modifier.clickable { showLogoutDialog = true },
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-                )
-                HorizontalDivider(color = MaterialTheme.colorScheme.error.copy(alpha = 0.1f))
-                ListItem(
-                    headlineContent = { Text("Eliminar Cuenta y Datos", color = MaterialTheme.colorScheme.error) },
-                    leadingContent = { Icon(rememberVectorPainter(Lucide.Trash2), null, tint = MaterialTheme.colorScheme.error) },
-                    supportingContent = { Text("Borrado definitivo conforme a RGPD", style = MaterialTheme.typography.labelSmall) },
-                    modifier = Modifier.clickable { showDeleteDialog = true },
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-                )
-            }
-        }
-        
-        Spacer(modifier = Modifier.height(32.dp))
     }
 }
 
@@ -523,7 +511,8 @@ fun AccountSectionContent(
 fun SettingsSectionContent(
     uiState: ProfileUiState,
     onUpdateStartOfWeek: (String) -> Unit = {},
-    onUpdateCutoffTime: (String) -> Unit = {}
+    onUpdateCutoffTime: (String) -> Unit = {},
+    onBack: () -> Unit
 ) {
     val daysMap = remember {
         linkedMapOf(
@@ -540,130 +529,145 @@ fun SettingsSectionContent(
     var showDaysMenu by remember { mutableStateOf(false) }
     val isExtendedDay = uiState.cutoffTime == "03:00"
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-            .verticalScroll(rememberScrollState())
-    ) {
-        Text(
-            text = "PREFERENCIAS DE LA ODISEA",
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-            modifier = Modifier.padding(bottom = 16.dp)
-        )
-
-        Card(
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
-            shape = RoundedCornerShape(12.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    text = "Inicio de la semana",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = "Determina cuándo se reinician tus objetivos semanales.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                    modifier = Modifier.padding(bottom = 12.dp)
-                )
-
-                Box {
-                    OutlinedCard(
-                        onClick = { showDaysMenu = true },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(8.dp),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .padding(12.dp)
-                                .fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = daysMap[uiState.startOfWeek] ?: "Lunes",
-                                style = MaterialTheme.typography.bodyLarge,
-                                fontWeight = FontWeight.Medium,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
-                                contentDescription = null,
-                                modifier = Modifier.size(14.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("AJUSTES DE ODISEA", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
                     }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
+            )
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(16.dp)
+                .verticalScroll(rememberScrollState())
+        ) {
+            Text(
+                text = "PREFERENCIAS DE LA ODISEA",
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
 
-                    DropdownMenu(
-                        expanded = showDaysMenu,
-                        onDismissRequest = { showDaysMenu = false },
-                        modifier = Modifier.fillMaxWidth(0.9f)
-                    ) {
-                        daysMap.forEach { (key, value) ->
-                            DropdownMenuItem(
-                                text = { Text(value) },
-                                onClick = {
-                                    onUpdateStartOfWeek(key)
-                                    showDaysMenu = false
-                                },
-                                trailingIcon = {
-                                    if (uiState.startOfWeek == key) {
-                                        Icon(rememberVectorPainter(Lucide.Zap), null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
+            Card(
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = "Inicio de la semana",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "Determina cuándo se reinician tus objetivos semanales.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        modifier = Modifier.padding(bottom = 12.dp)
+                    )
+
+                    Box {
+                        OutlinedCard(
+                            onClick = { showDaysMenu = true },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(8.dp),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .padding(12.dp)
+                                    .fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = daysMap[uiState.startOfWeek] ?: "Lunes",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = FontWeight.Medium,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(14.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        DropdownMenu(
+                            expanded = showDaysMenu,
+                            onDismissRequest = { showDaysMenu = false },
+                            modifier = Modifier.fillMaxWidth(0.9f)
+                        ) {
+                            daysMap.forEach { (key, value) ->
+                                DropdownMenuItem(
+                                    text = { Text(value) },
+                                    onClick = {
+                                        onUpdateStartOfWeek(key)
+                                        showDaysMenu = false
+                                    },
+                                    trailingIcon = {
+                                        if (uiState.startOfWeek == key) {
+                                            Icon(rememberVectorPainter(Lucide.Zap), null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
+                                        }
                                     }
-                                }
-                            )
+                                )
+                            }
                         }
                     }
                 }
             }
-        }
 
-        Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
-        Card(
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
-            shape = RoundedCornerShape(12.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Modo Final de Día Postergado",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
+            Card(
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Modo Final de Día Postergado",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Switch(
+                            checked = isExtendedDay,
+                            onCheckedChange = { extended ->
+                                onUpdateCutoffTime(if (extended) "03:00" else "00:00")
+                            }
                         )
                     }
-                    Switch(
-                        checked = isExtendedDay,
-                        onCheckedChange = { extended ->
-                            onUpdateCutoffTime(if (extended) "03:00" else "00:00")
-                        }
+                    
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    Text(
+                        text = "Si se activa, el día actual contará hasta las 3:00 AM del día siguiente. Ideal para héroes nocturnos.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                     )
                 }
-                
-                Spacer(modifier = Modifier.height(8.dp))
-                
-                Text(
-                    text = "Si se activa, el día actual contará hasta las 3:00 AM del día siguiente. Ideal para héroes nocturnos.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                )
             }
+            
+            Spacer(modifier = Modifier.height(32.dp))
         }
-        
-        Spacer(modifier = Modifier.height(32.dp))
     }
 }
 
@@ -743,7 +747,6 @@ fun ProfileScreenPreview() {
             ),
             currentSection = ProfileSection.MAIN_MENU,
             onSectionChange = {},
-            onNavigateBack = {},
             onLogout = {},
             onDeleteAccount = {},
             onUpdateName = {},
