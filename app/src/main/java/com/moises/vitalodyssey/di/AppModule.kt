@@ -17,6 +17,7 @@ import com.moises.vitalodyssey.domain.usecase.EvaluateHabitStateUseCase
 import com.moises.vitalodyssey.domain.usecase.EvaluateStrictStateUseCase
 import com.moises.vitalodyssey.domain.usecase.ProcessBattleResultUseCase
 import com.moises.vitalodyssey.domain.usecase.RecalculateHabitScoresUseCase
+import com.moises.vitalodyssey.domain.usecase.RecordHabitLogUseCase
 import com.moises.vitalodyssey.presentation.viewmodels.DashboardViewModel
 import com.moises.vitalodyssey.presentation.viewmodels.ProfileViewModel
 import com.moises.vitalodyssey.presentation.viewmodels.HabitsViewModel
@@ -65,6 +66,7 @@ val appModule = module {
     factory { EvaluateHabitStateUseCase() }
     factory { EvaluateStrictStateUseCase() }
     factory { RecalculateHabitScoresUseCase(get(), get(), get(), get()) }
+    factory { RecordHabitLogUseCase(get(), get(), get()) }
 
     // 5. ViewModels
     viewModel {
@@ -88,9 +90,8 @@ val appModule = module {
     viewModel {
         HabitsViewModel(
             habitDao = get(),
-            userRepository = get(),
             evaluateStateUseCase = get(),
-            recalculateHabitScoresUseCase = get()
+            recordHabitLogUseCase = get()
         )
     }
 
@@ -108,7 +109,7 @@ val appModule = module {
             habitDao = get(),
             userRepository = get(),
             evaluateStrictStateUseCase = get(),
-            recalculateHabitScoresUseCase = get()
+            recordHabitLogUseCase = get()
         )
     }
 

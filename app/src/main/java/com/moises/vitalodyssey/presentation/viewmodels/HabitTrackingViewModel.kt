@@ -6,7 +6,7 @@ import com.moises.vitalodyssey.data.local.HabitDao
 import com.moises.vitalodyssey.domain.model.*
 import com.moises.vitalodyssey.domain.repository.UserRepository
 import com.moises.vitalodyssey.domain.usecase.EvaluateStrictStateUseCase
-import com.moises.vitalodyssey.domain.usecase.RecalculateHabitScoresUseCase
+import com.moises.vitalodyssey.domain.usecase.RecordHabitLogUseCase
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.time.DayOfWeek
@@ -37,7 +37,7 @@ class HabitTrackingViewModel(
     private val habitDao: HabitDao,
     private val userRepository: UserRepository,
     private val evaluateStrictStateUseCase: EvaluateStrictStateUseCase,
-    private val recalculateHabitScoresUseCase: RecalculateHabitScoresUseCase
+    private val recordHabitLogUseCase: RecordHabitLogUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HabitTrackingUiState())
@@ -207,106 +207,9 @@ class HabitTrackingViewModel(
 
     fun updateLogForDate(dateStr: String, state: HabitState, value: Float?) {
         viewModelScope.launch {
-            val habit = habitDao.getHabitById(habitId) ?: return@launch
-            var finalState = state
-            val input = value ?: 0f
-            
-            val startDay = DayOfWeek.valueOf(userRepository.getUserProfileOnce()?.startOfWeek ?: "MONDAY")
-
-            // Lógica de Acumulación y Auto-completado
-            if (habit.isCumulative && habit.type == HabitType.MEASURABLE) {
-                val allLogs = habitDao.getLogsForHabit(habitId).first()
-                val date = LocalDate.parse(dateStr)
-                val periodRange = getPeriodRange(date, habit.frequencyType, startDay)
-
-                // Solo calculamos el estado automáticamente si se está introduciendo un valor (desde el TextField)
-                if (value != null) {
-                    val currentTotal = allLogs.filter {
-                        val logDate = LocalDate.parse(it.date)
-                        it.date != dateStr && !logDate.isBefore(periodRange.first) && !logDate.isAfter(periodRange.second)
-                    }.sumOf { it.measuredValue?.toDouble() ?: 0.0 }.toFloat()
-
-                    val totalWithNewInput = currentTotal + input
-                    
-                    if (totalWithNewInput >= habit.targetValue) {
-                        finalState = HabitState.COMPLETED
-                        autoCompletePeriod(habit, periodRange, allLogs, dateStr)
-                    } else {
-                        finalState = if (input > 0) HabitState.CONTRIBUTED else HabitState.UNRECORDED
-                        undoAutoCompletePeriod(periodRange, allLogs, dateStr)
-                    }
-                } else {
-                    // Si es manual (Missed, Skipped, etc.), respetamos el estado pero revertimos autocompletado
-                    undoAutoCompletePeriod(periodRange, allLogs, dateStr)
-                }
-            }
-
-            val existingLog = habitDao.getLogForDate(habitId, dateStr)
-            
-            if (finalState == HabitState.UNRECORDED) {
-                existingLog?.let { habitDao.deleteLog(it) }
-            } else {
-                val newLog = existingLog?.copy(state = finalState, measuredValue = value) 
-                    ?: HabitLog(habitId = habitId, date = dateStr, state = finalState, measuredValue = value)
-                habitDao.insertLog(newLog)
-            }
-            
-            // Recalcular todo el historial cronológicamente
-            recalculateHabitScoresUseCase(habitId)
+            recordHabitLogUseCase(habitId, dateStr, state, value)
         }
     }
 
-    private suspend fun autoCompletePeriod(habit: Habit, range: Pair<LocalDate, LocalDate>, logs: List<HabitLog>, currentUpdateDate: String) {
-        val logsByDate = logs.associateBy { it.date }
-        var check = range.first
-        while (!check.isAfter(range.second)) {
-            val dStr = check.toString()
-            if (dStr != currentUpdateDate) {
-                val log = logsByDate[dStr]
-                if (log == null || log.state == HabitState.UNRECORDED) {
-                    habitDao.insertLog(HabitLog(
-                        habitId = habit.id,
-                        date = dStr,
-                        state = HabitState.COMPLETED_BY_PERIOD,
-                        measuredValue = 0f
-                    ))
-                }
-            }
-            check = check.plusDays(1)
-        }
-    }
-
-    private suspend fun undoAutoCompletePeriod(range: Pair<LocalDate, LocalDate>, logs: List<HabitLog>, currentUpdateDate: String) {
-        val logsByDate = logs.associateBy { it.date }
-        var check = range.first
-        while (!check.isAfter(range.second)) {
-            val dStr = check.toString()
-            if (dStr != currentUpdateDate) {
-                val log = logsByDate[dStr]
-                if (log?.state == HabitState.COMPLETED_BY_PERIOD) {
-                    habitDao.deleteLog(log)
-                }
-            }
-            check = check.plusDays(1)
-        }
-    }
-
-    private fun getPeriodRange(
-        date: LocalDate, 
-        frequency: String,
-        startDay: DayOfWeek
-    ): Pair<LocalDate, LocalDate> {
-        return when (frequency) {
-            "WEEKLY" -> {
-                val weekStart = date.with(TemporalAdjusters.previousOrSame(startDay))
-                val weekEnd = weekStart.plusDays(6)
-                Pair(weekStart, weekEnd)
-            }
-            "MONTHLY" -> Pair(
-                date.with(TemporalAdjusters.firstDayOfMonth()),
-                date.with(TemporalAdjusters.lastDayOfMonth())
-            )
-            else -> Pair(date, date)
-        }
-    }
+    // Funciones auxiliares eliminadas porque ahora están en RecordHabitLogUseCase
 }

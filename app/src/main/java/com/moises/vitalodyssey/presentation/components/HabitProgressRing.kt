@@ -3,6 +3,7 @@ package com.moises.vitalodyssey.presentation.components
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -14,8 +15,8 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.composables.icons.lucide.*
 import com.moises.vitalodyssey.domain.model.HabitState
-import kotlin.math.roundToInt
 
 @Composable
 fun HabitProgressRing(
@@ -24,7 +25,8 @@ fun HabitProgressRing(
     measuredValue: Float?,
     isBoolean: Boolean,
     primaryColor: Color,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isCumulative: Boolean = false,
 ) {
     val sweepAngle = (score / 100f) * 360f
     val backgroundColor = primaryColor.copy(alpha = 0.2f)
@@ -44,31 +46,64 @@ fun HabitProgressRing(
             )
         }
 
-        val contentText = when (state) {
-            HabitState.UNRECORDED -> "?"
-            HabitState.SKIPPED -> "-"
-            HabitState.MISSED -> "X"
-            HabitState.COMPLETED, HabitState.COMPLETED_BY_PERIOD, HabitState.CONTRIBUTED -> {
-                if (isBoolean) "✓"
-                else {
+        when (state) {
+            HabitState.UNRECORDED -> {
+                Text(
+                    text = "?",
+                    style = MaterialTheme.typography.bodyLarge.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                    )
+                )
+            }
+            HabitState.SKIPPED -> {
+                Icon(
+                    imageVector = Lucide.Minus,
+                    contentDescription = null,
+                    tint = primaryColor,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+            HabitState.MISSED -> {
+                Icon(
+                    imageVector = Lucide.X,
+                    contentDescription = null,
+                    tint = primaryColor,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+            HabitState.COMPLETED_BY_PERIOD -> {
+                Icon(
+                    imageVector = Lucide.CircleCheck, // Universal para autocompletado
+                    contentDescription = null,
+                    tint = primaryColor,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+            HabitState.COMPLETED, HabitState.CONTRIBUTED -> {
+                if (isBoolean) {
+                    Icon(
+                        imageVector = Lucide.CircleCheckBig,
+                        contentDescription = null,
+                        tint = primaryColor,
+                        modifier = Modifier.size(24.dp)
+                    )
+                } else {
                     val value = measuredValue ?: 0f
                     val formatted = if (value % 1 == 0f) value.toInt().toString() else value.toString()
-                    if (state == HabitState.CONTRIBUTED && value > 0) "+$formatted" else formatted
+                    val labelText = if (isCumulative && value > 0) "+$formatted" else formatted
+                    
+                    Text(
+                        text = labelText,
+                        style = MaterialTheme.typography.bodyLarge.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = if (labelText.length > 2) 12.sp else 16.sp,
+                            color = primaryColor
+                        )
+                    )
                 }
             }
         }
-
-        Text(
-            text = contentText,
-            style = MaterialTheme.typography.bodyLarge.copy(
-                fontWeight = FontWeight.Bold,
-                fontSize = if (contentText.length > 2) 10.sp else if (contentText.length > 1) 14.sp else 18.sp,
-                color = when (state) {
-                    HabitState.UNRECORDED -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
-                    HabitState.CONTRIBUTED -> primaryColor // Color positivo
-                    else -> primaryColor
-                }
-            )
-        )
     }
 }

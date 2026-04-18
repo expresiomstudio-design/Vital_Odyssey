@@ -40,6 +40,7 @@ import com.moises.vitalodyssey.domain.model.Habit
 import com.moises.vitalodyssey.domain.model.HabitLog
 import com.moises.vitalodyssey.domain.model.HabitState
 import com.moises.vitalodyssey.domain.model.HabitType
+import com.moises.vitalodyssey.presentation.components.HabitLogDialog
 import com.moises.vitalodyssey.presentation.components.HabitStatusGridItem
 import com.moises.vitalodyssey.presentation.viewmodels.HabitTrackingViewModel
 import com.moises.vitalodyssey.presentation.viewmodels.ScorePoint
@@ -165,13 +166,9 @@ fun HabitTrackingScreen(
     }
 
     selectedLogForEdit?.let { log ->
-        HabitEditLogDialog(
-            habitName = uiState.habit?.name ?: "Hábito",
-            log = log,
-            habitType = uiState.habit?.type ?: HabitType.BOOLEAN,
-            targetValue = uiState.habit?.targetValue ?: 0f,
-            isCumulative = uiState.habit?.isCumulative ?: false,
-            unit = uiState.habit?.unit ?: "",
+        HabitLogDialog(
+            habit = uiState.habit ?: return@let,
+            dateStr = log.date,
             onDismiss = { selectedLogForEdit = null },
             onConfirm = { state, value ->
                 viewModel.updateLogForDate(log.date, state, value)
@@ -301,8 +298,8 @@ fun DayItem(
                 HabitState.UNRECORDED -> Lucide.Circle
                 HabitState.SKIPPED -> Lucide.Minus
                 HabitState.MISSED -> Lucide.X
-                HabitState.COMPLETED, HabitState.COMPLETED_BY_PERIOD -> if (!isMeasurable) Lucide.Check else null
-                HabitState.CONTRIBUTED -> if (!isMeasurable) Lucide.Check else null
+                HabitState.COMPLETED_BY_PERIOD -> Lucide.CircleCheck // Universal para todos
+                HabitState.COMPLETED, HabitState.CONTRIBUTED -> if (!isMeasurable) Lucide.CircleCheckBig else null
                 else -> null
             }
 
@@ -313,7 +310,7 @@ fun DayItem(
                     tint = if (enabled) color else color.copy(alpha = 0.3f),
                     modifier = Modifier.size(32.dp)
                 )
-            } else if (isMeasurable && (state == HabitState.COMPLETED || state == HabitState.COMPLETED_BY_PERIOD || state == HabitState.CONTRIBUTED)) {
+            } else if (isMeasurable && (state == HabitState.COMPLETED || state == HabitState.CONTRIBUTED)) {
                 val value = log?.measuredValue ?: 0f
                 val formatted = if (value % 1 == 0f) value.toInt().toString() else value.toString()
                 val labelText = if (habit?.isCumulative == true && value > 0) "+$formatted" else formatted
@@ -525,6 +522,7 @@ fun StatsSummary(habit: Habit?, currentStreak: Int) {
     }
 }
 
+// StatCard eliminado porque era pequeño y local, o movido si se desea. Mantener si no se pidió eliminar explícitamente.
 @Composable
 fun StatCard(label: String, value: String, icon: ImageVector, modifier: Modifier = Modifier) {
     Card(
@@ -541,121 +539,6 @@ fun StatCard(label: String, value: String, icon: ImageVector, modifier: Modifier
             Spacer(modifier = Modifier.height(8.dp))
             Text(text = value, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
             Text(text = label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
-        }
-    }
-}
-
-@Composable
-fun HabitEditLogDialog(
-    habitName: String,
-    log: HabitLog,
-    habitType: HabitType,
-    targetValue: Float,
-    isCumulative: Boolean,
-    unit: String,
-    onDismiss: () -> Unit,
-    onConfirm: (HabitState, Float?) -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Editar Registro: ${log.date}") },
-        text = {
-            HabitLoggingContent(
-                habitName = habitName,
-                habitType = habitType,
-                targetValue = targetValue,
-                isCumulative = isCumulative,
-                unit = unit,
-                onRecord = { state, value ->
-                    onConfirm(state, value)
-                }
-            )
-        },
-        confirmButton = {},
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } }
-    )
-}
-
-@Composable
-fun HabitLoggingContent(
-    habitName: String,
-    habitType: HabitType,
-    targetValue: Float,
-    isCumulative: Boolean,
-    unit: String,
-    onRecord: (HabitState, Float?) -> Unit
-) {
-    var textValue by remember { mutableStateOf("") }
-    val primaryColor = MaterialTheme.colorScheme.primary
-
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(20.dp)
-    ) {
-        Text(habitName, style = MaterialTheme.typography.headlineSmall)
-        
-        if (habitType == HabitType.MEASURABLE) {
-            val label = if (isCumulative) "Suma a la meta: ${targetValue.toInt()} $unit" else "Meta: ${targetValue.toInt()} $unit"
-            Text(label, color = primaryColor)
-            OutlinedTextField(
-                value = textValue,
-                onValueChange = { if (it.all { char -> char.isDigit() || char == '.' }) textValue = it },
-                label = { Text(if (isCumulative) "Cantidad a sumar" else "Valor alcanzado") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.fillMaxWidth()
-            )
-            
-            Button(
-                onClick = { 
-                    val value = textValue.toFloatOrNull() ?: 0f
-                    val state = if (isCumulative && value > 0) HabitState.CONTRIBUTED else HabitState.COMPLETED
-                    onRecord(state, value) 
-                },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(if (isCumulative) "Sumar Aportación" else "Guardar Registro")
-            }
-            
-            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-        }
-
-        // Cuadrícula de acciones (2x2)
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                if (habitType == HabitType.BOOLEAN) {
-                    HabitStatusGridItem(
-                        label = "Completado",
-                        icon = Lucide.CircleCheck,
-                        color = MaterialTheme.colorScheme.primary,
-                        onClick = { onRecord(HabitState.COMPLETED, null) },
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-                HabitStatusGridItem(
-                    label = "Saltado",
-                    icon = Lucide.CircleMinus,
-                    color = MaterialTheme.colorScheme.secondary,
-                    onClick = { onRecord(HabitState.SKIPPED, null) },
-                    modifier = if (habitType == HabitType.BOOLEAN) Modifier.weight(1f) else Modifier.fillMaxWidth()
-                )
-            }
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                HabitStatusGridItem(
-                    label = "No Realizado",
-                    icon = Lucide.CircleX,
-                    color = MaterialTheme.colorScheme.error,
-                    onClick = { onRecord(HabitState.MISSED, null) },
-                    modifier = Modifier.weight(1f)
-                )
-                HabitStatusGridItem(
-                    label = "Borrar",
-                    icon = Lucide.Eraser,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    onClick = { onRecord(HabitState.UNRECORDED, null) },
-                    modifier = Modifier.weight(1f)
-                )
-            }
         }
     }
 }
