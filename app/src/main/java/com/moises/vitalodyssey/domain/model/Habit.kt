@@ -38,5 +38,6 @@ data class Habit(
     // RACHAS Y PUNTUACIÓN
     val currentStreak: Int = 0,
     val score: Float = 0f,
-    val startDate: String = "" // Fecha de creación (YYYY-MM-DD)
+    val startDate: String = "", // Fecha de creación (YYYY-MM-DD)
+    val isDeleted: Boolean = false
 )

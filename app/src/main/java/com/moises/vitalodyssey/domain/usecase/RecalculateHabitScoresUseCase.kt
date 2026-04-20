@@ -1,7 +1,6 @@
 package com.moises.vitalodyssey.domain.usecase
 
 import com.moises.vitalodyssey.data.local.HabitDao
-import com.moises.vitalodyssey.domain.model.Habit
 import com.moises.vitalodyssey.domain.model.HabitLog
 import com.moises.vitalodyssey.domain.model.HabitState
 import com.moises.vitalodyssey.domain.repository.UserRepository
@@ -18,55 +17,42 @@ class RecalculateHabitScoresUseCase(
 ) {
     suspend operator fun invoke(habitId: Int) {
         val habit = habitDao.getHabitById(habitId) ?: return
-        val logs = habitDao.getLogsForHabit(habitId).first().sortedBy { it.date }
         
-        val parsedStart = if (habit.startDate.isNotEmpty()) LocalDate.parse(habit.startDate) else LocalDate.now()
-        val firstLogDate = logs.firstOrNull()?.let { LocalDate.parse(it.date) } ?: parsedStart
+        // Gracias a la Dense Time Series, iteramos directamente sobre los logs existentes
+        val allLogs = habitDao.getLogsForHabit(habitId).first().sortedBy { it.date }
         
         val today = LocalDate.now()
         val startDay = DayOfWeek.valueOf(userRepository.getUserProfileOnce()?.startOfWeek ?: "MONDAY")
 
-        val logsByDate = logs.associateBy { it.date }.toMutableMap()
-        
         var currentScore = 0f
-        var checkDate = if (parsedStart.isBefore(firstLogDate)) parsedStart else firstLogDate
-        
-        val updatedLogs = mutableListOf<HabitLog>()
 
-        while (!checkDate.isAfter(today)) {
-            val dateStr = checkDate.toString()
-            val existingLog = logsByDate[dateStr]
-            val originalState = existingLog?.state ?: HabitState.UNRECORDED
+        allLogs.forEach { log ->
+            val logDate = LocalDate.parse(log.date)
             
-            val isPeriodOngoing = isDateInOngoingPeriod(checkDate, today, habit.frequencyType, startDay)
+            // Solo calculamos hasta hoy. Logs futuros mantienen score 0 o el score actual.
+            if (logDate.isAfter(today)) return@forEach
+
+            val isPeriodOngoing = isDateInOngoingPeriod(logDate, today, habit.frequencyType, startDay)
+            
+            // Transformamos UNRECORDED en MISSED si el periodo ya cerró
             val strictState = evaluateStrictStateUseCase(
-                state = originalState,
-                date = dateStr,
-                isCumulative = habit.isCumulative,
+                state = log.state,
+                date = log.date,
                 isPeriodOngoing = isPeriodOngoing
             )
             
             currentScore = calculateScoreUseCase(
                 currentScore = currentScore,
                 state = strictState,
-                input = existingLog?.measuredValue ?: 0f,
+                input = log.measuredValue ?: 0f,
                 targetValue = habit.targetValue
             )
 
-            val updatedLog = (existingLog ?: HabitLog(
-                habitId = habitId,
-                date = dateStr,
-                state = HabitState.UNRECORDED
-            )).copy(currentScore = currentScore)
-            
-            updatedLogs.add(updatedLog)
-            checkDate = checkDate.plusDays(1)
+            // Actualizamos el log con su score histórico
+            habitDao.updateLog(log.copy(currentScore = currentScore))
         }
 
-        // Batch update/insert logs
-        updatedLogs.forEach { habitDao.insertLog(it) }
-
-        // Update main habit score
+        // Actualizamos el score global del hábito con el resultado final
         habitDao.updateHabit(habit.copy(score = currentScore))
     }
 

@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.Flow
 interface HabitDao {
 
     // --- MÉTODOS PARA HABIT ---
-    @Query("SELECT * FROM habits_table")
+    @Query("SELECT * FROM habits_table WHERE isDeleted = 0")
     fun getAllHabits(): Flow<List<Habit>>
 
     @Query("SELECT * FROM habits_table WHERE id = :id")
@@ -24,11 +24,16 @@ interface HabitDao {
     @Update
     suspend fun updateHabit(habit: Habit)
 
+    @Deprecated("Usar Soft Deletion", ReplaceWith("updateHabit(habit.copy(isDeleted = true))"))
     @Delete
     suspend fun deleteHabit(habit: Habit)
 
+    @Deprecated("Usar Soft Deletion para Dense Time Series", ReplaceWith("updateLog(log.copy(state = HabitState.UNRECORDED))"))
     @Delete
     suspend fun deleteLog(log: HabitLog)
+
+    @Update
+    suspend fun updateLog(log: HabitLog)
 
     @Query("UPDATE habits_table SET isCompleted = :completed WHERE id = :habitId")
     suspend fun updateHabitStatus(habitId: Int, completed: Boolean)
@@ -45,4 +50,10 @@ interface HabitDao {
 
     @Query("SELECT * FROM habit_logs WHERE habitId = :habitId AND date = :date LIMIT 1")
     suspend fun getLogForDate(habitId: Int, date: String): HabitLog?
+
+    @Query("SELECT * FROM habit_logs WHERE habitId = :habitId ORDER BY date ASC LIMIT 1")
+    suspend fun getOldestLog(habitId: Int): HabitLog?
+
+    @Query("SELECT * FROM habit_logs WHERE habitId = :habitId ORDER BY date DESC LIMIT 1")
+    suspend fun getNewestLog(habitId: Int): HabitLog?
 }

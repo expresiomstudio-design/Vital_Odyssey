@@ -116,7 +116,11 @@ class HabitTrackingViewModel(
             val originalState = log?.state ?: HabitState.UNRECORDED
             
             val isPeriodOngoing = isDateInOngoingPeriod(checkDate, today, habit?.frequencyType ?: "DAILY", startDay)
-            val strictState = evaluateStrictStateUseCase(originalState, dateStr, habit?.isCumulative ?: false, isPeriodOngoing)
+            val strictState = evaluateStrictStateUseCase(
+                state = originalState,
+                date = dateStr,
+                isPeriodOngoing = isPeriodOngoing
+            )
             
             when (strictState) {
                 HabitState.COMPLETED, HabitState.COMPLETED_BY_PERIOD, HabitState.CONTRIBUTED -> {

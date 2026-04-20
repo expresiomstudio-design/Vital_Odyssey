@@ -152,7 +152,7 @@ fun HabitFormScreen(
                         OutlinedTextField(
                             value = uiState.targetValueInput,
                             onValueChange = { viewModel.onTargetValueChange(it) },
-                            label = { Text(if (uiState.isCumulative) "Meta Total Periodo" else "Meta por Sesión") },
+                            label = { Text(if (uiState.isCumulative) "Meta por Periodo" else "Meta por Sesión") },
                             placeholder = { Text(if (uiState.isCumulative) "Ej: 15.0" else "Ej: 5.0") },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                             modifier = Modifier.weight(1f)
