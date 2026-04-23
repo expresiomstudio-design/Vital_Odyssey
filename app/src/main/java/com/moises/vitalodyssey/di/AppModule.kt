@@ -9,23 +9,11 @@ import com.moises.vitalodyssey.data.remote.AuthRepositoryImpl
 import com.moises.vitalodyssey.data.remote.UserRepositoryImpl
 import com.moises.vitalodyssey.domain.repository.AuthRepository
 import com.moises.vitalodyssey.domain.repository.UserRepository
-import com.moises.vitalodyssey.domain.usecase.CalculateBattleTurnUseCase
-import com.moises.vitalodyssey.domain.usecase.CalculateBossStatsUseCase
-import com.moises.vitalodyssey.domain.usecase.CalculateHabitScoreUseCase
-import com.moises.vitalodyssey.domain.usecase.CalculatePlayerStatsUseCase
-import com.moises.vitalodyssey.domain.usecase.EvaluateHabitStateUseCase
-import com.moises.vitalodyssey.domain.usecase.EvaluateStrictStateUseCase
-import com.moises.vitalodyssey.domain.usecase.ProcessBattleResultUseCase
-import com.moises.vitalodyssey.domain.usecase.RecalculateHabitScoresUseCase
-import com.moises.vitalodyssey.domain.usecase.RecordHabitLogUseCase
-import com.moises.vitalodyssey.presentation.viewmodels.DashboardViewModel
-import com.moises.vitalodyssey.presentation.viewmodels.ProfileViewModel
-import com.moises.vitalodyssey.presentation.viewmodels.HabitsViewModel
-import com.moises.vitalodyssey.presentation.viewmodels.HabitFormViewModel
-import com.moises.vitalodyssey.presentation.viewmodels.HabitTrackingViewModel
-import com.moises.vitalodyssey.presentation.viewmodels.AuthViewModel
-import com.moises.vitalodyssey.presentation.viewmodels.OnboardingViewModel
-import com.moises.vitalodyssey.presentation.viewmodels.MainViewModel
+import com.moises.vitalodyssey.domain.usecase.*
+import com.moises.vitalodyssey.domain.usecase.apprules.DeleteAppRuleUseCase
+import com.moises.vitalodyssey.domain.usecase.apprules.GetAppRulesUseCase
+import com.moises.vitalodyssey.domain.usecase.apprules.SaveAppRuleUseCase
+import com.moises.vitalodyssey.presentation.viewmodels.*
 import org.koin.android.ext.koin.androidContext
 import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.dsl.module
@@ -48,7 +36,11 @@ val appModule = module {
             AppDatabase::class.java,
             "vital_odyssey_db"
         )
-            .addMigrations(AppDatabase.MIGRATION_3_4, AppDatabase.MIGRATION_4_5)
+            .addMigrations(
+                AppDatabase.MIGRATION_3_4,
+                AppDatabase.MIGRATION_4_5,
+                AppDatabase.MIGRATION_5_6
+            )
             .fallbackToDestructiveMigration()
             .build()
     }
@@ -56,6 +48,7 @@ val appModule = module {
     // 3. DAOs
     single { get<AppDatabase>().habitDao() }
     single { get<AppDatabase>().userDao() }
+    single { get<AppDatabase>().appRuleDao() }
 
     // 4. Casos de Uso
     factory { CalculatePlayerStatsUseCase() }
@@ -67,6 +60,11 @@ val appModule = module {
     factory { EvaluateStrictStateUseCase() }
     factory { RecalculateHabitScoresUseCase(get(), get(), get(), get()) }
     factory { RecordHabitLogUseCase(get(), get(), get()) }
+    
+    // Casos de Uso - Foco Arcano
+    factory { GetAppRulesUseCase(get()) }
+    factory { SaveAppRuleUseCase(get()) }
+    factory { DeleteAppRuleUseCase(get()) }
 
     // 5. ViewModels
     viewModel {
