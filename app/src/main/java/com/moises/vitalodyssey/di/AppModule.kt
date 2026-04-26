@@ -3,15 +3,18 @@ package com.moises.vitalodyssey.di
 import androidx.room.Room
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.moises.vitalodyssey.data.device.AppUsageRepositoryImpl
 import com.moises.vitalodyssey.data.local.AppDatabase
 import com.moises.vitalodyssey.data.local.UserPreferencesManager
 import com.moises.vitalodyssey.data.remote.AuthRepositoryImpl
 import com.moises.vitalodyssey.data.remote.UserRepositoryImpl
+import com.moises.vitalodyssey.domain.repository.AppUsageRepository
 import com.moises.vitalodyssey.domain.repository.AuthRepository
 import com.moises.vitalodyssey.domain.repository.UserRepository
 import com.moises.vitalodyssey.domain.usecase.*
 import com.moises.vitalodyssey.domain.usecase.apprules.DeleteAppRuleUseCase
 import com.moises.vitalodyssey.domain.usecase.apprules.GetAppRulesUseCase
+import com.moises.vitalodyssey.domain.usecase.apprules.GetTrackedAppsUsageUseCase
 import com.moises.vitalodyssey.domain.usecase.apprules.SaveAppRuleUseCase
 import com.moises.vitalodyssey.presentation.viewmodels.*
 import org.koin.android.ext.koin.androidContext
@@ -25,6 +28,7 @@ val appModule = module {
     single { FirebaseFirestore.getInstance() }
     single<AuthRepository> { AuthRepositoryImpl(get()) }
     single<UserRepository> { UserRepositoryImpl(get(), get(), get(), get(), get()) }
+    single<AppUsageRepository> { AppUsageRepositoryImpl(androidContext()) }
 
     // 1. DataStore
     single { UserPreferencesManager(androidContext()) }
@@ -65,6 +69,7 @@ val appModule = module {
     factory { GetAppRulesUseCase(get()) }
     factory { SaveAppRuleUseCase(get()) }
     factory { DeleteAppRuleUseCase(get()) }
+    factory { GetTrackedAppsUsageUseCase(get(), get()) }
 
     // 5. ViewModels
     viewModel {
