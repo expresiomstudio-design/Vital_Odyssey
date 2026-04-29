@@ -111,6 +111,16 @@ fun VitalOdysseyMainScreen(
                     onNavigateBack = { navController.popBackStack() }
                 )
             }
+            composable(
+                route = "app_rule_form/{ruleId}",
+                arguments = listOf(navArgument("ruleId") { type = NavType.IntType })
+            ) { backStackEntry ->
+                val ruleId = backStackEntry.arguments?.getInt("ruleId") ?: 0
+                AppRuleFormScreen(
+                    ruleId = ruleId,
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
             // Redirecciones de compatibilidad por si se navega a rutas antiguas
             composable("dashboard") { LaunchedEffect(Unit) { navController.navigate("main_container") } }
             composable("habits") { LaunchedEffect(Unit) { navController.navigate("main_container") } }

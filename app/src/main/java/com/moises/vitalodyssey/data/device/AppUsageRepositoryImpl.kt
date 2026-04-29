@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Process
+import com.moises.vitalodyssey.domain.model.AppInfo
 import com.moises.vitalodyssey.domain.model.AppUsageStat
 import com.moises.vitalodyssey.domain.repository.AppUsageRepository
 import kotlinx.coroutines.Dispatchers
@@ -68,5 +69,20 @@ class AppUsageRepositoryImpl(private val context: Context) : AppUsageRepository 
                     lastUpdated = usageStats.lastTimeStamp
                 )
             }
+    }
+
+    override suspend fun getInstalledApps(): List<AppInfo> = withContext(Dispatchers.IO) {
+        val packageManager = context.packageManager
+        val apps = packageManager.getInstalledApplications(PackageManager.GET_META_DATA)
+
+        apps.filter { packageManager.getLaunchIntentForPackage(it.packageName) != null }
+            .map { app ->
+                AppInfo(
+                    packageName = app.packageName,
+                    name = packageManager.getApplicationLabel(app).toString(),
+                    icon = packageManager.getApplicationIcon(app)
+                )
+            }
+            .sortedBy { it.name }
     }
 }

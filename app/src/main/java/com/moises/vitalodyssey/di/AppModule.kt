@@ -13,6 +13,7 @@ import com.moises.vitalodyssey.domain.repository.AuthRepository
 import com.moises.vitalodyssey.domain.repository.UserRepository
 import com.moises.vitalodyssey.domain.usecase.*
 import com.moises.vitalodyssey.domain.usecase.apprules.DeleteAppRuleUseCase
+import com.moises.vitalodyssey.domain.usecase.apprules.GetAppRuleByIdUseCase
 import com.moises.vitalodyssey.domain.usecase.apprules.GetAppRulesUseCase
 import com.moises.vitalodyssey.domain.usecase.apprules.GetTrackedAppsUsageUseCase
 import com.moises.vitalodyssey.domain.usecase.apprules.SaveAppRuleUseCase
@@ -70,6 +71,7 @@ val appModule = module {
     factory { SaveAppRuleUseCase(get()) }
     factory { DeleteAppRuleUseCase(get()) }
     factory { GetTrackedAppsUsageUseCase(get(), get()) }
+    factory { GetAppRuleByIdUseCase(get()) }
 
     // 5. ViewModels
     viewModel {
@@ -133,6 +135,15 @@ val appModule = module {
         MainViewModel(
             auth = get(),
             userRepository = get()
+        )
+    }
+
+    viewModel {
+        AppRuleFormViewModel(
+            saveAppRuleUseCase = get(),
+            deleteAppRuleUseCase = get(),
+            getAppRuleByIdUseCase = get(),
+            appUsageRepository = get()
         )
     }
 }
