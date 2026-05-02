@@ -146,4 +146,12 @@ val appModule = module {
             appUsageRepository = get()
         )
     }
+
+    viewModel {
+        AppRulesViewModel(
+            getTrackedAppsUsageUseCase = get(),
+            appRuleDao = get(),
+            saveAppRuleUseCase = get()
+        )
+    }
 }

@@ -86,6 +86,9 @@ fun VitalOdysseyMainScreen(
                     },
                     onNavigateToTracking = { habitId ->
                         navController.navigate("habit_tracking/$habitId")
+                    },
+                    onNavigateToAppRuleForm = { ruleId ->
+                        navController.navigate("app_rule_form/$ruleId")
                     }
                 )
             }
@@ -133,7 +136,8 @@ fun VitalOdysseyMainScreen(
 fun MainContainerScreen(
     onLogout: () -> Unit,
     onNavigateToForm: (Int) -> Unit,
-    onNavigateToTracking: (Int) -> Unit
+    onNavigateToTracking: (Int) -> Unit,
+    onNavigateToAppRuleForm: (Int) -> Unit
 ) {
     val innerNavController = rememberNavController()
     val navBackStackEntry by innerNavController.currentBackStackEntryAsState()
@@ -171,6 +175,11 @@ fun MainContainerScreen(
                 HabitsScreen(
                     onNavigateToForm = onNavigateToForm,
                     onNavigateToTracking = onNavigateToTracking
+                )
+            }
+            composable("app_rules") {
+                AppRulesScreen(
+                    onNavigateToForm = onNavigateToAppRuleForm
                 )
             }
             composable("profile") {
