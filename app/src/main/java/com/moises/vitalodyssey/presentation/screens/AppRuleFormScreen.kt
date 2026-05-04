@@ -1,5 +1,6 @@
 package com.moises.vitalodyssey.presentation.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -23,6 +24,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.rememberAsyncImagePainter
@@ -90,6 +92,25 @@ fun AppRuleFormScreen(
                 onClick = { showAppSelector = true }
             )
 
+            if (uiState.hasOtherRules) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f)),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f)),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Lucide.Info, contentDescription = null, tint = MaterialTheme.colorScheme.secondary)
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = "Esta app ya tiene otras reglas. Recuerda que los temporizadores son independientes: si tienes una regla diaria y una por horario, el tiempo se descontará de ambas simultáneamente.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+
             // 2. Nombre de la Regla
             OutlinedTextField(
                 value = uiState.ruleName,
@@ -103,31 +124,31 @@ fun AppRuleFormScreen(
 
             // 3. Configuración de Límite
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Text("Tipo de Control", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                Text("Límite de Uso", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
                 
+                DailyLimitSelector(
+                    totalMinutes = uiState.timeLimitMinutes,
+                    onMinutesChange = { viewModel.onTimeLimitChange(it) }
+                )
+
+                Text("Modo de Activación", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+
                 SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                     SegmentedButton(
                         selected = !uiState.isBlockMode,
                         onClick = { viewModel.onBlockModeChange(false) },
                         shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
-                        label = { Text("Límite Diario") }
+                        label = { Text("Diario") }
                     )
                     SegmentedButton(
                         selected = uiState.isBlockMode,
                         onClick = { viewModel.onBlockModeChange(true) },
                         shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
-                        label = { Text("Bloque Horario") }
+                        label = { Text("Horario") }
                     )
                 }
 
-                if (!uiState.isBlockMode) {
-                    // Límite Diario (Horas y Minutos)
-                    DailyLimitSelector(
-                        totalMinutes = uiState.timeLimitMinutes,
-                        onMinutesChange = { viewModel.onTimeLimitChange(it) }
-                    )
-                } else {
-                    // Bloque Horario
+                if (uiState.isBlockMode) {
                     TimeRangeSelector(
                         startTime = uiState.startTime,
                         endTime = uiState.endTime,
@@ -135,6 +156,15 @@ fun AppRuleFormScreen(
                         onEndClick = { showTimePickerForEnd = true }
                     )
                 }
+
+                Text(
+                    text = if (uiState.isBlockMode) 
+                        "El tiempo de uso solo se contabilizará dentro de esta franja horaria. Fuera de este horario, el uso es completamente libre."
+                    else 
+                        "El tiempo de uso se contabilizará durante tu día lógico (desde las ${uiState.cutoffTime} hasta la misma hora del día siguiente).",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
 
             // 4. Días Activos
@@ -147,14 +177,26 @@ fun AppRuleFormScreen(
             }
 
             // 5. Botón de Guardar Principal
-            Button(
-                onClick = { viewModel.saveRule() },
-                modifier = Modifier.fillMaxWidth().height(56.dp),
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Icon(Icons.Default.Save, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("GUARDAR REGLA", fontWeight = FontWeight.Bold)
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                uiState.errorMessage?.let { error ->
+                    Text(
+                        text = error,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.labelMedium,
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                        textAlign = TextAlign.Center
+                    )
+                }
+
+                Button(
+                    onClick = { viewModel.saveRule() },
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Icon(Icons.Default.Save, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("GUARDAR REGLA", fontWeight = FontWeight.Bold)
+                }
             }
 
             // 6. Botón de Eliminar
@@ -177,7 +219,10 @@ fun AppRuleFormScreen(
     if (showAppSelector) {
         AppSelectorSheet(
             installedApps = uiState.installedApps,
-            onAppSelected = { viewModel.onPackageSelected(it) },
+            onAppSelected = { 
+                viewModel.onPackageSelected(it)
+                showAppSelector = false
+            },
             onDismiss = { showAppSelector = false }
         )
     }
@@ -274,11 +319,6 @@ fun AppSelectionCard(
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
-                    Text(
-                        packageName,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
                 }
                 Icon(Lucide.RefreshCw, contentDescription = "Cambiar", modifier = Modifier.size(20.dp))
             }
@@ -291,31 +331,45 @@ fun DailyLimitSelector(
     totalMinutes: Int,
     onMinutesChange: (Int) -> Unit
 ) {
-    val hours = totalMinutes / 60
-    val minutes = totalMinutes % 60
+    var hoursText by remember(totalMinutes) { 
+        mutableStateOf(if (totalMinutes / 60 > 0) (totalMinutes / 60).toString() else "") 
+    }
+    var minsText by remember(totalMinutes) { 
+        mutableStateOf(if (totalMinutes % 60 > 0) (totalMinutes % 60).toString() else "") 
+    }
 
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         OutlinedTextField(
-            value = hours.toString(),
-            onValueChange = { 
-                val h = it.toIntOrNull() ?: 0
-                onMinutesChange(h * 60 + minutes)
+            value = hoursText,
+            onValueChange = { newValue ->
+                if (newValue.all { it.isDigit() }) {
+                    hoursText = newValue
+                    val h = newValue.toIntOrNull() ?: 0
+                    val m = minsText.toIntOrNull() ?: 0
+                    onMinutesChange(h * 60 + m)
+                }
             },
             label = { Text("Horas") },
+            placeholder = { Text("0") },
             modifier = Modifier.weight(1f),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             shape = RoundedCornerShape(12.dp)
         )
         OutlinedTextField(
-            value = minutes.toString(),
-            onValueChange = { 
-                val m = it.toIntOrNull() ?: 0
-                onMinutesChange(hours * 60 + m)
+            value = minsText,
+            onValueChange = { newValue ->
+                if (newValue.all { it.isDigit() }) {
+                    minsText = newValue
+                    val h = hoursText.toIntOrNull() ?: 0
+                    val m = newValue.toIntOrNull() ?: 0
+                    onMinutesChange(h * 60 + m)
+                }
             },
             label = { Text("Minutos") },
+            placeholder = { Text("0") },
             modifier = Modifier.weight(1f),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             shape = RoundedCornerShape(12.dp)

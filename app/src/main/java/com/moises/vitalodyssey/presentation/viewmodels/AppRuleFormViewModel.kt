@@ -5,12 +5,15 @@ import androidx.lifecycle.viewModelScope
 import com.moises.vitalodyssey.domain.model.AppInfo
 import com.moises.vitalodyssey.domain.model.AppRule
 import com.moises.vitalodyssey.domain.repository.AppUsageRepository
+import com.moises.vitalodyssey.domain.repository.UserRepository
 import com.moises.vitalodyssey.domain.usecase.apprules.DeleteAppRuleUseCase
 import com.moises.vitalodyssey.domain.usecase.apprules.GetAppRuleByIdUseCase
+import com.moises.vitalodyssey.domain.usecase.apprules.GetAppRulesUseCase
 import com.moises.vitalodyssey.domain.usecase.apprules.SaveAppRuleUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -26,14 +29,19 @@ data class AppRuleFormUiState(
     val activeDays: List<Int> = listOf(1, 2, 3, 4, 5, 6, 7),
     val installedApps: List<AppInfo> = emptyList(),
     val isSaved: Boolean = false,
-    val isEnabled: Boolean = true
+    val isEnabled: Boolean = true,
+    val cutoffTime: String = "00:00",
+    val hasOtherRules: Boolean = false,
+    val errorMessage: String? = null
 )
 
 class AppRuleFormViewModel(
     private val saveAppRuleUseCase: SaveAppRuleUseCase,
     private val deleteAppRuleUseCase: DeleteAppRuleUseCase,
     private val getAppRuleByIdUseCase: GetAppRuleByIdUseCase,
-    private val appUsageRepository: AppUsageRepository
+    private val appUsageRepository: AppUsageRepository,
+    private val userRepository: UserRepository,
+    private val getAppRulesUseCase: GetAppRulesUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AppRuleFormUiState())
@@ -41,6 +49,11 @@ class AppRuleFormViewModel(
 
     init {
         loadInstalledApps()
+        viewModelScope.launch {
+            userRepository.getUserProfileOnce()?.cutoffTime?.let { time -> 
+                _uiState.update { it.copy(cutoffTime = time) } 
+            }
+        }
     }
 
     fun loadRule(id: Int) {
@@ -51,6 +64,7 @@ class AppRuleFormViewModel(
                     it.copy(
                         id = rule.id,
                         packageName = rule.packageName,
+                        appName = rule.appName, // Fix bug: loading original name
                         ruleName = rule.appName,
                         timeLimitMinutes = rule.timeLimitMinutes,
                         isBlockMode = rule.isBlockMode,
@@ -60,6 +74,7 @@ class AppRuleFormViewModel(
                         isEnabled = rule.isEnabled
                     )
                 }
+                checkExistingRules(rule.packageName)
             }
         }
     }
@@ -81,38 +96,65 @@ class AppRuleFormViewModel(
             state.copy(
                 packageName = app.packageName,
                 appName = app.name,
-                ruleName = newRuleName
+                ruleName = newRuleName,
+                errorMessage = null
             )
+        }
+        checkExistingRules(app.packageName)
+    }
+
+    private fun checkExistingRules(pkgName: String) {
+        viewModelScope.launch {
+            getAppRulesUseCase().collect { rules ->
+                val currentId = _uiState.value.id
+                val hasOthers = rules.any { it.packageName == pkgName && it.id != currentId }
+                _uiState.update { it.copy(hasOtherRules = hasOthers, errorMessage = null) }
+            }
         }
     }
 
     fun onRuleNameChange(name: String) {
-        _uiState.update { it.copy(ruleName = name) }
+        _uiState.update { it.copy(ruleName = name, errorMessage = null) }
     }
 
     fun onTimeLimitChange(minutes: Int) {
-        _uiState.update { it.copy(timeLimitMinutes = minutes) }
+        _uiState.update { it.copy(timeLimitMinutes = minutes, errorMessage = null) }
     }
 
     fun onBlockModeChange(isBlock: Boolean) {
-        _uiState.update { it.copy(isBlockMode = isBlock) }
+        _uiState.update { it.copy(isBlockMode = isBlock, errorMessage = null) }
     }
 
     fun onStartTimeChange(time: String) {
-        _uiState.update { it.copy(startTime = time) }
+        _uiState.update { it.copy(startTime = time, errorMessage = null) }
     }
 
     fun onEndTimeChange(time: String) {
-        _uiState.update { it.copy(endTime = time) }
+        _uiState.update { it.copy(endTime = time, errorMessage = null) }
     }
 
     fun onDaysChanged(days: List<Int>) {
-        _uiState.update { it.copy(activeDays = days) }
+        _uiState.update { it.copy(activeDays = days, errorMessage = null) }
     }
 
     fun saveRule() {
         viewModelScope.launch {
             val state = _uiState.value
+            
+            // Validador de duplicados e idénticos
+            val currentRules = getAppRulesUseCase().first()
+            val isDuplicate = currentRules.any { rule ->
+                rule.id != state.id &&
+                rule.packageName == state.packageName &&
+                rule.isBlockMode == state.isBlockMode &&
+                (!state.isBlockMode || (rule.startTime == state.startTime && rule.endTime == state.endTime))
+            }
+
+            if (isDuplicate) {
+                _uiState.update { it.copy(errorMessage = "Ya existe una regla idéntica para esta aplicación.") }
+                return@launch
+            }
+
             val rule = AppRule(
                 id = state.id,
                 packageName = state.packageName,

@@ -1,17 +1,17 @@
 package com.moises.vitalodyssey.data.device
 
+import android.util.Log
 import android.app.AppOpsManager
+import android.app.usage.UsageEvents
 import android.app.usage.UsageStatsManager
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Process
 import com.moises.vitalodyssey.domain.model.AppInfo
-import com.moises.vitalodyssey.domain.model.AppUsageStat
 import com.moises.vitalodyssey.domain.repository.AppUsageRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.util.*
 
 class AppUsageRepositoryImpl(private val context: Context) : AppUsageRepository {
 
@@ -34,41 +34,64 @@ class AppUsageRepositoryImpl(private val context: Context) : AppUsageRepository 
         return mode == AppOpsManager.MODE_ALLOWED
     }
 
-    override suspend fun getDailyUsageStats(): List<AppUsageStat> = withContext(Dispatchers.IO) {
+    override suspend fun getUsageForPackage(
+        packageName: String,
+        startMillis: Long,
+        endMillis: Long
+    ): Int = withContext(Dispatchers.IO) {
         val usageStatsManager = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
-        val packageManager = context.packageManager
+        val events = usageStatsManager.queryEvents(startMillis, endMillis)
+        var totalTime = 0L
+        var startTime = 0L
+        val event = UsageEvents.Event()
 
-        val calendar = Calendar.getInstance()
-        calendar.set(Calendar.HOUR_OF_DAY, 0)
-        calendar.set(Calendar.MINUTE, 0)
-        calendar.set(Calendar.SECOND, 0)
-        calendar.set(Calendar.MILLISECOND, 0)
-        val startTime = calendar.timeInMillis
-        val endTime = System.currentTimeMillis()
+        // 1. LOG DE INICIO DE BÚSQUEDA
+        Log.d("FocoArcanoDebug", "--- BUSCANDO USO PARA: $packageName ---")
+        Log.d("FocoArcanoDebug", "Rango: $startMillis -> $endMillis")
 
-        val stats = usageStatsManager.queryUsageStats(
-            UsageStatsManager.INTERVAL_DAILY,
-            startTime,
-            endTime
-        ) ?: emptyList()
-
-        stats.filter { it.totalTimeInForeground > 0 }
-            .map { usageStats ->
-                val packageName = usageStats.packageName
-                val appName = try {
-                    val appInfo = packageManager.getApplicationInfo(packageName, 0)
-                    packageManager.getApplicationLabel(appInfo).toString()
-                } catch (e: PackageManager.NameNotFoundException) {
-                    packageName
+        while (events.hasNextEvent()) {
+            events.getNextEvent(event)
+            if (event.packageName == packageName) {
+                
+                // 2. LOG DE EVENTOS ENCONTRADOS
+                val eventType = when(event.eventType) {
+                    UsageEvents.Event.ACTIVITY_RESUMED -> "RESUMED (Abierta)"
+                    UsageEvents.Event.ACTIVITY_PAUSED -> "PAUSED (Pausada)"
+                    UsageEvents.Event.ACTIVITY_STOPPED -> "STOPPED (Cerrada)"
+                    else -> "OTRO (${event.eventType})"
                 }
+                Log.d("FocoArcanoDebug", "Evento: $eventType | Timestamp: ${event.timeStamp}")
 
-                AppUsageStat(
-                    packageName = packageName,
-                    appName = appName,
-                    timeUsedMinutes = (usageStats.totalTimeInForeground / (1000 * 60)).toInt(),
-                    lastUpdated = usageStats.lastTimeStamp
-                )
+                when (event.eventType) {
+                    UsageEvents.Event.ACTIVITY_RESUMED -> {
+                        startTime = event.timeStamp
+                    }
+                    UsageEvents.Event.ACTIVITY_PAUSED, UsageEvents.Event.ACTIVITY_STOPPED -> {
+                        if (startTime != 0L) {
+                            val sessionTime = event.timeStamp - startTime
+                            totalTime += sessionTime
+                            Log.d("FocoArcanoDebug", "Sesión cerrada. Duración: ${sessionTime / 1000} segundos. Total acumulado: ${totalTime / 1000} seg")
+                            startTime = 0L
+                        }
+                    }
+                }
             }
+        }
+
+        // Corrección del tiempo presente
+        if (startTime != 0L && endMillis > startTime) {
+            val currentSessionTime = endMillis - startTime
+            totalTime += currentSessionTime
+            Log.d("FocoArcanoDebug", "App actualmente abierta. Sumando sesión en curso: ${currentSessionTime / 1000} segundos")
+        }
+
+        val minutesUsed = (totalTime / (1000 * 60)).toInt()
+        
+        // 3. LOG DE RESULTADO FINAL
+        Log.d("FocoArcanoDebug", ">>> TOTAL FINAL para $packageName: $minutesUsed minutos <<<")
+        Log.d("FocoArcanoDebug", "--------------------------------------")
+        
+        minutesUsed
     }
 
     override suspend fun getInstalledApps(): List<AppInfo> = withContext(Dispatchers.IO) {

@@ -70,7 +70,7 @@ val appModule = module {
     factory { GetAppRulesUseCase(get()) }
     factory { SaveAppRuleUseCase(get()) }
     factory { DeleteAppRuleUseCase(get()) }
-    factory { GetTrackedAppsUsageUseCase(get(), get()) }
+    factory { GetTrackedAppsUsageUseCase(get(), get(), get()) }
     factory { GetAppRuleByIdUseCase(get()) }
 
     // 5. ViewModels
@@ -143,7 +143,9 @@ val appModule = module {
             saveAppRuleUseCase = get(),
             deleteAppRuleUseCase = get(),
             getAppRuleByIdUseCase = get(),
-            appUsageRepository = get()
+            appUsageRepository = get(),
+            userRepository = get(),
+            getAppRulesUseCase = get()
         )
     }
 
@@ -151,7 +153,8 @@ val appModule = module {
         AppRulesViewModel(
             getTrackedAppsUsageUseCase = get(),
             appRuleDao = get(),
-            saveAppRuleUseCase = get()
+            saveAppRuleUseCase = get(),
+            appUsageRepository = get()
         )
     }
 }
