@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.moises.vitalodyssey.data.local.Difficulty
 import com.moises.vitalodyssey.domain.repository.UserRepository
 import com.moises.vitalodyssey.domain.usecase.*
+import com.moises.vitalodyssey.domain.usecase.apprules.CalculateFocoArcanoUseCase
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
@@ -26,7 +27,8 @@ class DashboardViewModel(
     private val calculateStats: CalculatePlayerStatsUseCase,
     private val calculateBossStats: CalculateBossStatsUseCase,
     private val calculateBattleTurn: CalculateBattleTurnUseCase,
-    private val processBattleResult: ProcessBattleResultUseCase
+    private val processBattleResult: ProcessBattleResultUseCase,
+    private val calculateFocoArcano: CalculateFocoArcanoUseCase
 ) : ViewModel() {
 
     private var currentLog = "La noche es oscura, pero tu voluntad es de hierro."
@@ -118,9 +120,11 @@ class DashboardViewModel(
         }
     }
 
-    fun dailyReset(appFocusPercentage: Int) {
+    fun dailyReset() {
         viewModelScope.launch {
             val currentProfile = userRepository.getUserProfile().firstOrNull() ?: return@launch
+            val appFocusPercentage = calculateFocoArcano()
+            
             val streak = currentProfile.presenceStreak
             
             val baseStamina = 34

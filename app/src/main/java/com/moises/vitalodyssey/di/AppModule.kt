@@ -12,6 +12,7 @@ import com.moises.vitalodyssey.domain.repository.AppUsageRepository
 import com.moises.vitalodyssey.domain.repository.AuthRepository
 import com.moises.vitalodyssey.domain.repository.UserRepository
 import com.moises.vitalodyssey.domain.usecase.*
+import com.moises.vitalodyssey.domain.usecase.apprules.CalculateFocoArcanoUseCase
 import com.moises.vitalodyssey.domain.usecase.apprules.DeleteAppRuleUseCase
 import com.moises.vitalodyssey.domain.usecase.apprules.GetAppRuleByIdUseCase
 import com.moises.vitalodyssey.domain.usecase.apprules.GetAppRulesUseCase
@@ -72,6 +73,7 @@ val appModule = module {
     factory { DeleteAppRuleUseCase(get()) }
     factory { GetTrackedAppsUsageUseCase(get(), get(), get()) }
     factory { GetAppRuleByIdUseCase(get()) }
+    factory { CalculateFocoArcanoUseCase(get()) }
 
     // 5. ViewModels
     viewModel {
@@ -80,7 +82,8 @@ val appModule = module {
             calculateStats = get(),
             calculateBossStats = get(),
             calculateBattleTurn = get(),
-            processBattleResult = get()
+            processBattleResult = get(),
+            calculateFocoArcano = get()
         )
     }
     
