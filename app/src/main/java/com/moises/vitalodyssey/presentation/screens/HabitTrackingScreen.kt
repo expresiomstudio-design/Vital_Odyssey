@@ -42,8 +42,9 @@ import com.moises.vitalodyssey.domain.model.HabitState
 import com.moises.vitalodyssey.domain.model.HabitType
 import com.moises.vitalodyssey.presentation.components.HabitLogDialog
 import com.moises.vitalodyssey.presentation.components.HabitStatusGridItem
+import com.moises.vitalodyssey.presentation.components.TimeEvolutionChartSection
+import com.moises.vitalodyssey.presentation.components.ChartPoint
 import com.moises.vitalodyssey.presentation.viewmodels.HabitTrackingViewModel
-import com.moises.vitalodyssey.presentation.viewmodels.ScorePoint
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
 import java.time.Instant
@@ -108,7 +109,8 @@ fun HabitTrackingScreen(
                 onCalendarClick = { showDatePicker = true }
             )
 
-            ScoreChartSection(
+            TimeEvolutionChartSection(
+                title = "Evolución",
                 points = uiState.chartPoints,
                 selectedPeriod = uiState.selectedPeriod,
                 canMoveLeft = uiState.canMoveChartLeft,
@@ -331,187 +333,6 @@ fun DayItem(
     }
 }
 
-@Composable
-fun ScoreChartSection(
-    points: List<ScorePoint>,
-    selectedPeriod: String,
-    canMoveLeft: Boolean,
-    canMoveRight: Boolean,
-    onPeriodChange: (String) -> Unit,
-    onMoveChart: (Int) -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("Evolución", fontWeight = FontWeight.Bold)
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    IconButton(
-                        onClick = { onMoveChart(1) },
-                        enabled = canMoveLeft,
-                        modifier = Modifier.size(24.dp)
-                    ) {
-                        Icon(
-                            imageVector = Lucide.ChevronLeft,
-                            contentDescription = "Anterior",
-                            modifier = Modifier.size(16.dp),
-                            tint = if (canMoveLeft) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
-                        )
-                    }
-                    
-                    listOf("Día", "Semana", "Mes").forEach { period ->
-                        val isSelected = selectedPeriod == period
-                        Text(
-                            text = period,
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent)
-                                .clickable { onPeriodChange(period) }
-                                .padding(horizontal = 8.dp, vertical = 4.dp),
-                            color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
-                            fontSize = 12.sp
-                        )
-                    }
-
-                    IconButton(
-                        onClick = { onMoveChart(-1) },
-                        enabled = canMoveRight,
-                        modifier = Modifier.size(24.dp)
-                    ) {
-                        Icon(
-                            imageVector = Lucide.ChevronRight,
-                            contentDescription = "Siguiente",
-                            modifier = Modifier.size(16.dp),
-                            tint = if (canMoveRight) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
-                        )
-                    }
-                }
-            }
-            Spacer(modifier = Modifier.height(24.dp))
-            ScoreChart(
-                points = points, 
-                selectedPeriod = selectedPeriod,
-                modifier = Modifier.height(180.dp).fillMaxWidth()
-            )
-        }
-    }
-}
-
-@Composable
-fun ScoreChart(
-    points: List<ScorePoint>, 
-    selectedPeriod: String,
-    modifier: Modifier = Modifier
-) {
-    val primaryColor = MaterialTheme.colorScheme.primary
-    val onSurfaceColor = MaterialTheme.colorScheme.onSurface
-    val surfaceColor = MaterialTheme.colorScheme.surface
-    val textMeasurer = rememberTextMeasurer()
-    val labelStyle = MaterialTheme.typography.labelSmall.copy(
-        color = onSurfaceColor.copy(alpha = 0.6f),
-        fontSize = 10.sp
-    )
-
-    Canvas(modifier = modifier) {
-        val width = size.width
-        val height = size.height
-        val paddingLeft = 40.dp.toPx()
-        val paddingBottom = 30.dp.toPx()
-        val chartWidth = width - paddingLeft
-        val chartHeight = height - paddingBottom
-        
-        val dashPathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f), 0f)
-        
-        for (i in 0..5) {
-            val yLevel = i * 20f
-            val yPos = chartHeight - (yLevel / 100f * chartHeight)
-            
-            drawText(
-                textMeasurer = textMeasurer,
-                text = "${yLevel.toInt()}%",
-                style = labelStyle,
-                topLeft = androidx.compose.ui.geometry.Offset(0f, yPos - 10.dp.toPx())
-            )
-            
-            if (i > 0) {
-                drawLine(
-                    color = onSurfaceColor.copy(alpha = 0.1f),
-                    start = androidx.compose.ui.geometry.Offset(paddingLeft, yPos),
-                    end = androidx.compose.ui.geometry.Offset(width, yPos),
-                    pathEffect = if (i < 5) dashPathEffect else null
-                )
-            }
-        }
-
-        drawLine(
-            color = onSurfaceColor.copy(alpha = 0.3f),
-            start = androidx.compose.ui.geometry.Offset(paddingLeft, chartHeight),
-            end = androidx.compose.ui.geometry.Offset(width, chartHeight),
-            strokeWidth = 2f
-        )
-        drawLine(
-            color = onSurfaceColor.copy(alpha = 0.3f),
-            start = androidx.compose.ui.geometry.Offset(paddingLeft, 0f),
-            end = androidx.compose.ui.geometry.Offset(paddingLeft, chartHeight),
-            strokeWidth = 2f
-        )
-
-        if (points.isEmpty()) return@Canvas
-
-        val stepX = if (points.size > 1) chartWidth / (points.size - 1) else chartWidth / 2
-        val path = Path()
-        val pointOffsets = points.mapIndexed { index, point ->
-            val x = if (points.size > 1) paddingLeft + (index * stepX) else paddingLeft + chartWidth / 2
-            val y = chartHeight - (point.score / 100f * chartHeight)
-            androidx.compose.ui.geometry.Offset(x, y)
-        }
-
-        pointOffsets.forEachIndexed { index, offset ->
-            if (index == 0) path.moveTo(offset.x, offset.y) else path.lineTo(offset.x, offset.y)
-        }
-
-        drawPath(
-            path = path,
-            color = primaryColor,
-            style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round)
-        )
-
-        pointOffsets.forEach { offset ->
-            drawCircle(color = surfaceColor, radius = 4.dp.toPx(), center = offset)
-            drawCircle(color = primaryColor, radius = 4.dp.toPx(), center = offset, style = Stroke(width = 2.dp.toPx()))
-        }
-
-        points.forEachIndexed { index, point ->
-            val label = when(selectedPeriod) {
-                "Día" -> point.date.dayOfMonth.toString()
-                "Semana" -> point.date.get(IsoFields.WEEK_OF_WEEK_BASED_YEAR).toString()
-                "Mes" -> point.date.month.getDisplayName(TextStyle.SHORT, Locale("es")).replaceFirstChar { it.uppercase() }
-                else -> point.date.dayOfMonth.toString()
-            }
-            
-            val textLayoutResult = textMeasurer.measure(label, labelStyle)
-            val xPosition = if (points.size > 1) paddingLeft + (index * stepX) else paddingLeft + chartWidth / 2
-            
-            drawText(
-                textLayoutResult = textLayoutResult,
-                topLeft = androidx.compose.ui.geometry.Offset(
-                    xPosition - (textLayoutResult.size.width / 2),
-                    chartHeight + 8.dp.toPx()
-                )
-            )
-        }
-    }
-}
 
 @Composable
 fun StatsSummary(habit: Habit?, currentStreak: Int) {

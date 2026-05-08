@@ -10,6 +10,7 @@ import com.moises.vitalodyssey.data.remote.AuthRepositoryImpl
 import com.moises.vitalodyssey.data.remote.UserRepositoryImpl
 import com.moises.vitalodyssey.domain.repository.AppUsageRepository
 import com.moises.vitalodyssey.domain.repository.AuthRepository
+import com.moises.vitalodyssey.domain.repository.HealthRepository
 import com.moises.vitalodyssey.domain.repository.UserRepository
 import com.moises.vitalodyssey.domain.usecase.*
 import com.moises.vitalodyssey.domain.usecase.apprules.CalculateFocoArcanoUseCase
@@ -31,6 +32,7 @@ val appModule = module {
     single<AuthRepository> { AuthRepositoryImpl(get()) }
     single<UserRepository> { UserRepositoryImpl(get(), get(), get(), get(), get()) }
     single<AppUsageRepository> { AppUsageRepositoryImpl(androidContext()) }
+    single<HealthRepository> { com.moises.vitalodyssey.data.device.HealthRepositoryImpl(androidContext()) }
 
     // 1. DataStore
     single { UserPreferencesManager(androidContext()) }

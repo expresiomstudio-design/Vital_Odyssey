@@ -7,12 +7,12 @@ plugins {
 
 android {
     namespace = "com.moises.vitalodyssey"
-    compileSdk = 34
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.moises.vitalodyssey"
         minSdk = 28
-        targetSdk = 34
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -59,7 +59,7 @@ dependencies {
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
 
-    implementation(libs.androidx.connect.client)
+    implementation("androidx.health.connect:connect-client:1.1.0")
     implementation(libs.androidx.work.runtime.ktx)
 
     implementation(libs.androidx.room.runtime)
@@ -82,4 +82,6 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended:1.7.7")
     implementation("io.coil-kt:coil-compose:2.6.0")
     implementation(libs.compose.icons.lucide)
+
+    testImplementation("junit:junit:4.13.2")
 }

@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.moises.vitalodyssey.data.local.HabitDao
 import com.moises.vitalodyssey.domain.model.*
 import com.moises.vitalodyssey.domain.repository.UserRepository
+import com.moises.vitalodyssey.presentation.components.ChartPoint
 import com.moises.vitalodyssey.domain.usecase.EvaluateStrictStateUseCase
 import com.moises.vitalodyssey.domain.usecase.RecordHabitLogUseCase
 import kotlinx.coroutines.flow.*
@@ -16,20 +17,15 @@ import java.time.temporal.TemporalAdjusters
 data class HabitTrackingUiState(
     val habit: Habit? = null,
     val logs: List<HabitLog> = emptyList(),
-    val scoreHistory: List<ScorePoint> = emptyList(),
+    val scoreHistory: List<ChartPoint> = emptyList(),
     val currentWeekStart: LocalDate = LocalDate.now().minusDays(6), // Hoy a la derecha por defecto
     val currentStreak: Int = 0,
     val startDay: DayOfWeek = DayOfWeek.MONDAY,
     val isLoading: Boolean = false,
     val canMoveChartLeft: Boolean = false,
     val canMoveChartRight: Boolean = false,
-    val chartPoints: List<ScorePoint> = emptyList(),
+    val chartPoints: List<ChartPoint> = emptyList(),
     val selectedPeriod: String = "Día"
-)
-
-data class ScorePoint(
-    val date: LocalDate,
-    val score: Float
 )
 
 class HabitTrackingViewModel(
@@ -62,18 +58,18 @@ class HabitTrackingViewModel(
                 val startDay = DayOfWeek.valueOf(profile?.startOfWeek ?: "MONDAY")
                 
                 val history = logs.sortedBy { it.date }.map { 
-                    ScorePoint(LocalDate.parse(it.date), it.currentScore) 
+                    ChartPoint(LocalDate.parse(it.date), it.currentScore) 
                 }
                 val streak = calculateCurrentStreak(habit, logs, startDay)
                 
                 val groupedPoints = when(period) {
                     "Semana" -> history
                         .groupBy { it.date.with(TemporalAdjusters.previousOrSame(startDay)) }
-                        .map { (weekStart, points) -> ScorePoint(weekStart, points.maxOf { it.score }) }
+                        .map { (weekStart, points) -> ChartPoint(weekStart, points.maxOf { it.value }) }
                         .sortedBy { it.date }
                     "Mes" -> history
                         .groupBy { it.date.withDayOfMonth(1) }
-                        .map { (monthStart, points) -> ScorePoint(monthStart, points.maxOf { it.score }) }
+                        .map { (monthStart, points) -> ChartPoint(monthStart, points.maxOf { it.value }) }
                         .sortedBy { it.date }
                     else -> history
                 }
@@ -197,9 +193,9 @@ class HabitTrackingViewModel(
     }
 
     // Funciones obsoletas eliminadas/refactorizadas internamente en combine
-    fun getDailyPoints(): List<ScorePoint> = _uiState.value.chartPoints
-    fun getWeeklyPoints(): List<ScorePoint> = _uiState.value.chartPoints
-    fun getMonthlyPoints(): List<ScorePoint> = _uiState.value.chartPoints
+    fun getDailyPoints(): List<ChartPoint> = _uiState.value.chartPoints
+    fun getWeeklyPoints(): List<ChartPoint> = _uiState.value.chartPoints
+    fun getMonthlyPoints(): List<ChartPoint> = _uiState.value.chartPoints
 
     fun deleteHabit() {
         viewModelScope.launch {
