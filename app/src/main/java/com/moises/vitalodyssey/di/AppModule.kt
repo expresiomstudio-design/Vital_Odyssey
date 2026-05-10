@@ -19,6 +19,8 @@ import com.moises.vitalodyssey.domain.usecase.apprules.GetAppRuleByIdUseCase
 import com.moises.vitalodyssey.domain.usecase.apprules.GetAppRulesUseCase
 import com.moises.vitalodyssey.domain.usecase.apprules.GetTrackedAppsUsageUseCase
 import com.moises.vitalodyssey.domain.usecase.apprules.SaveAppRuleUseCase
+import com.moises.vitalodyssey.domain.usecase.health.CalculateDefenseMultiplierUseCase
+import com.moises.vitalodyssey.domain.usecase.health.GetYesterdayHealthStatsUseCase
 import com.moises.vitalodyssey.presentation.viewmodels.*
 import org.koin.android.ext.koin.androidContext
 import org.koin.androidx.viewmodel.dsl.viewModel
@@ -76,6 +78,10 @@ val appModule = module {
     factory { GetTrackedAppsUsageUseCase(get(), get(), get()) }
     factory { GetAppRuleByIdUseCase(get()) }
     factory { CalculateFocoArcanoUseCase(get()) }
+
+    // Casos de Uso - Salud
+    factory { GetYesterdayHealthStatsUseCase(get(), get()) }
+    factory { CalculateDefenseMultiplierUseCase(get(), get()) }
 
     // 5. ViewModels
     viewModel {

@@ -47,6 +47,14 @@ class UserPreferencesManager(private val context: Context) {
         val BODY_TYPE = stringPreferencesKey("body_type")
         val PLAYER_CLASS = stringPreferencesKey("player_class")
         val HAS_COMPLETED_ONBOARDING = booleanPreferencesKey("has_completed_onboarding")
+
+        // Health Connect & Manual Mode
+        val HEALTH_CONNECT_ENABLED = booleanPreferencesKey("health_connect_enabled")
+        val STEP_GOAL = intPreferencesKey("step_goal")
+        val SLEEP_GOAL = floatPreferencesKey("sleep_goal")
+        val LAST_MANUAL_STEPS = longPreferencesKey("last_manual_steps")
+        val LAST_MANUAL_SLEEP = floatPreferencesKey("last_manual_sleep")
+        val LAST_MANUAL_REPORT_DATE = stringPreferencesKey("last_manual_report_date")
     }
 
     val userPrefsFlow: Flow<UserPrefs> = context.dataStore.data
@@ -95,6 +103,57 @@ class UserPreferencesManager(private val context: Context) {
                 hasCompletedOnboarding = hasCompletedOnboarding
             )
         }
+
+    // ── Health Connect & Manual Mode Flows ──────────────────────────────────
+
+    val healthConnectEnabledFlow: Flow<Boolean> = context.dataStore.data
+        .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
+        .map { it[PreferencesKeys.HEALTH_CONNECT_ENABLED] ?: false }
+
+    val stepGoalFlow: Flow<Int> = context.dataStore.data
+        .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
+        .map { it[PreferencesKeys.STEP_GOAL] ?: 8000 }
+
+    val sleepGoalFlow: Flow<Float> = context.dataStore.data
+        .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
+        .map { it[PreferencesKeys.SLEEP_GOAL] ?: 7.5f }
+
+    val lastManualStepsFlow: Flow<Long> = context.dataStore.data
+        .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
+        .map { it[PreferencesKeys.LAST_MANUAL_STEPS] ?: 0L }
+
+    val lastManualSleepFlow: Flow<Float> = context.dataStore.data
+        .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
+        .map { it[PreferencesKeys.LAST_MANUAL_SLEEP] ?: 0f }
+
+    val lastManualReportDateFlow: Flow<String> = context.dataStore.data
+        .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
+        .map { it[PreferencesKeys.LAST_MANUAL_REPORT_DATE] ?: "" }
+
+    // ── Suspend update functions ──────────────────────────────────────────────
+
+    suspend fun setHealthConnectEnabled(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[PreferencesKeys.HEALTH_CONNECT_ENABLED] = enabled
+        }
+    }
+
+    suspend fun setHealthGoals(steps: Int, sleep: Float) {
+        context.dataStore.edit { preferences ->
+            preferences[PreferencesKeys.STEP_GOAL] = steps
+            preferences[PreferencesKeys.SLEEP_GOAL] = sleep
+        }
+    }
+
+    suspend fun setManualHealthReport(steps: Long, sleep: Float, date: String) {
+        context.dataStore.edit { preferences ->
+            preferences[PreferencesKeys.LAST_MANUAL_STEPS] = steps
+            preferences[PreferencesKeys.LAST_MANUAL_SLEEP] = sleep
+            preferences[PreferencesKeys.LAST_MANUAL_REPORT_DATE] = date
+        }
+    }
+
+    // ── Existing suspend functions ────────────────────────────────────────────
 
     suspend fun updateAuthStatus(isLoggedIn: Boolean) {
         context.dataStore.edit { preferences ->
