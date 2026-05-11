@@ -3,6 +3,7 @@ package com.moises.vitalodyssey
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
@@ -29,6 +30,7 @@ import org.koin.androidx.compose.koinViewModel
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
         setContent {
             VitalOdysseyTheme {
                 Surface(
@@ -181,6 +183,10 @@ fun MainContainerScreen(
                 AppRulesScreen(
                     onNavigateToForm = onNavigateToAppRuleForm
                 )
+            }
+            composable("health") {
+                val viewModel: com.moises.vitalodyssey.presentation.viewmodels.HealthViewModel = koinViewModel()
+                HealthScreen(viewModel = viewModel)
             }
             composable("profile") {
                 ProfileScreen(

@@ -1,5 +1,7 @@
 package com.moises.vitalodyssey.domain.usecase
 
+import com.moises.vitalodyssey.domain.usecase.health.CalculateDefenseMultiplierUseCase
+
 data class BattleResult(
     val damageDealtToBoss: Int,
     val damageReceivedFromBoss: Int,
@@ -7,9 +9,11 @@ data class BattleResult(
     val xpEarned: Int
 )
 
-class CalculateBattleTurnUseCase {
+class CalculateBattleTurnUseCase(
+    private val calculateDefenseMultiplierUseCase: CalculateDefenseMultiplierUseCase
+) {
 
-    operator fun invoke(
+    suspend operator fun invoke(
         playerStats: PlayerStats,
         bossAttack: Int,
         offensiveHabitsTotal: Int,
@@ -34,8 +38,14 @@ class CalculateBattleTurnUseCase {
         val maxHealingPossible = playerStats.maxHp * 0.10f
         val hpHealed = (maxHealingPossible * defenseCompletionRate).toInt()
 
-        val actualDefense = (playerStats.baseDefense * totalMultiplier).toInt()
-        val damageReceived = (bossAttack - actualDefense).coerceAtLeast(0)
+        // 1. Obtener el multiplicador del escudo de salud
+        val healthShieldMultiplier = calculateDefenseMultiplierUseCase()
+
+        // 2. Aplicar el multiplicador a la defensa base del jugador
+        val effectiveDefense = (playerStats.baseDefense * healthShieldMultiplier).toInt()
+
+        // 3. Calcular el daño final
+        val damageReceived = (bossAttack - effectiveDefense).coerceAtLeast(0)
 
         val totalCompleted = offensiveHabitsCompleted + defensiveHabitsCompleted
         var xpEarned = totalCompleted * 10

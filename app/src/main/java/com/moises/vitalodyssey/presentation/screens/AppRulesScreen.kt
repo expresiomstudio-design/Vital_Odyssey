@@ -78,7 +78,7 @@ fun AppRulesScreen(
                         modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
                         border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f))
                     ) {
-                        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                             Icon(Lucide.Eye, contentDescription = null, tint = MaterialTheme.colorScheme.primaryContainer)
                             Spacer(modifier = Modifier.width(16.dp))
                             Column(modifier = Modifier.weight(1f)) {

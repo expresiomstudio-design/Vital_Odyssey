@@ -80,7 +80,7 @@ fun HabitFormScreen(
                 .padding(padding)
                 .padding(16.dp)
                 .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // 1. Selector de Tipo
             Text("Tipo de Hábito", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
@@ -231,7 +231,7 @@ fun HabitFormScreen(
                 }
             }
             
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(110.dp))
         }
     }
 

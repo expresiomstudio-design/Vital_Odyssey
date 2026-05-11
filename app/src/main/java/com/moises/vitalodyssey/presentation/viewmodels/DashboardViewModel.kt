@@ -6,6 +6,7 @@ import com.moises.vitalodyssey.data.local.Difficulty
 import com.moises.vitalodyssey.domain.repository.UserRepository
 import com.moises.vitalodyssey.domain.usecase.*
 import com.moises.vitalodyssey.domain.usecase.apprules.CalculateFocoArcanoUseCase
+import com.moises.vitalodyssey.domain.usecase.health.CalculateDefenseMultiplierUseCase
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
@@ -18,7 +19,9 @@ data class DashboardUiState(
     val currentStamina: Int = 100,
     val presenceStreak: Int = 0,
     val attackStat: Int = 101,
+    val attackMultiplier: Float = 1.0f,
     val defenseStat: Int = 10,
+    val defenseMultiplier: Float = 1.0f,
     val combatLog: String = "La noche es oscura, pero tu voluntad es de hierro."
 )
 
@@ -28,7 +31,8 @@ class DashboardViewModel(
     private val calculateBossStats: CalculateBossStatsUseCase,
     private val calculateBattleTurn: CalculateBattleTurnUseCase,
     private val processBattleResult: ProcessBattleResultUseCase,
-    private val calculateFocoArcano: CalculateFocoArcanoUseCase
+    private val calculateFocoArcano: CalculateFocoArcanoUseCase,
+    private val calculateDefenseMultiplierUseCase: CalculateDefenseMultiplierUseCase
 ) : ViewModel() {
 
     private var currentLog = "La noche es oscura, pero tu voluntad es de hierro."
@@ -37,6 +41,10 @@ class DashboardViewModel(
         if (profile == null) return@map DashboardUiState()
         
         val stats = calculateStats(profile.level)
+        val defMult = calculateDefenseMultiplierUseCase()
+        
+        // Mocking attackMultiplier until a UseCase is available
+        val atkMult = 1.2f
 
         val hpRange = (stats.maxHp - stats.faintHp).toFloat()
         val currentVisualHp = (profile.currentHp - stats.faintHp).coerceAtLeast(0).toFloat()
@@ -55,7 +63,9 @@ class DashboardViewModel(
             currentStamina = profile.currentStamina,
             presenceStreak = profile.presenceStreak,
             attackStat = stats.baseAttack,
+            attackMultiplier = atkMult,
             defenseStat = stats.baseDefense,
+            defenseMultiplier = defMult,
             combatLog = currentLog
         )
     }.stateIn(

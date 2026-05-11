@@ -1,6 +1,6 @@
 package com.moises.vitalodyssey.presentation.components
 
-import android.widget.Toast
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
@@ -9,7 +9,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.composables.icons.lucide.*
 
@@ -18,12 +17,14 @@ fun VitalOdysseyBottomNavBar(
     currentRoute: String?,
     onNavigate: (String) -> Unit
 ) {
-    val context = LocalContext.current
-
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(95.dp),
+            // 1️⃣ Primero el color de fondo → llena hasta el borde físico del dispositivo
+            .background(MaterialTheme.colorScheme.surface)
+            // 2️⃣ Luego el padding → empuja el CONTENIDO por encima de la nav bar del sistema
+            .navigationBarsPadding()
+            .height(60.dp),
         contentAlignment = Alignment.BottomCenter
     ) {
         NavigationBar(
@@ -31,7 +32,8 @@ fun VitalOdysseyBottomNavBar(
             tonalElevation = 8.dp,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(72.dp)
+                .height(60.dp)
+                .padding(bottom = 4.dp)
         ) {
             // Ítem 1: Hábitos
             NavigationBarItem(
@@ -53,12 +55,10 @@ fun VitalOdysseyBottomNavBar(
                 )
             )
 
-            // Ítem 2: Salud (Próximamente)
+            // Ítem 2: Salud
             NavigationBarItem(
-                selected = false,
-                onClick = { 
-                    Toast.makeText(context, "Módulo de Salud: Próximamente", Toast.LENGTH_SHORT).show()
-                },
+                selected = currentRoute == "health",
+                onClick = { onNavigate("health") },
                 icon = { 
                     Icon(
                         painter = rememberVectorPainter(Lucide.Heart), 
@@ -139,7 +139,7 @@ fun VitalOdysseyBottomNavBar(
             else 
                 MaterialTheme.colorScheme.surfaceVariant,
             contentColor = if (currentRoute == "dashboard")
-                MaterialTheme.colorScheme.onPrimary 
+                MaterialTheme.colorScheme.onPrimary
             else 
                 MaterialTheme.colorScheme.primary,
             elevation = FloatingActionButtonDefaults.elevation(
@@ -148,12 +148,13 @@ fun VitalOdysseyBottomNavBar(
             ),
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .size(64.dp)
+                .offset(y = (-10).dp)   // baja levemente para quedar integrado en la barra
+                .size(56.dp)
         ) {
             Icon(
                 painter = rememberVectorPainter(Lucide.Swords),
                 contentDescription = "Combate",
-                modifier = Modifier.size(30.dp)
+                modifier = Modifier.size(24.dp)
             )
         }
     }

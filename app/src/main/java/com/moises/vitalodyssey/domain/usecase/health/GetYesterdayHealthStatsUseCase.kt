@@ -5,7 +5,6 @@ import com.moises.vitalodyssey.domain.model.HealthStatsResult
 import com.moises.vitalodyssey.domain.repository.HealthRepository
 import kotlinx.coroutines.flow.first
 import java.time.LocalDate
-import javax.inject.Inject
 
 /**
  * Recupera las estadísticas de salud del día anterior decidiendo de forma inteligente
@@ -18,7 +17,7 @@ import javax.inject.Inject
  * | `false` (Manual)       | Fecha del reporte == ayer    | Datos manuales guardados, isReported=true |
  * | `false` (Manual)       | Fecha del reporte ≠ ayer     | 0L / 0f, isReported=false              |
  */
-class GetYesterdayHealthStatsUseCase @Inject constructor(
+class GetYesterdayHealthStatsUseCase(
     private val healthRepository: HealthRepository,
     private val userPreferencesManager: UserPreferencesManager
 ) {

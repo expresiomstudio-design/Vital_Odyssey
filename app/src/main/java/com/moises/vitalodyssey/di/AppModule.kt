@@ -62,7 +62,7 @@ val appModule = module {
 
     // 4. Casos de Uso
     factory { CalculatePlayerStatsUseCase() }
-    factory { CalculateBattleTurnUseCase() }
+    factory { CalculateBattleTurnUseCase(get()) }
     factory { CalculateBossStatsUseCase() }
     factory { ProcessBattleResultUseCase(get()) }
     factory { CalculateHabitScoreUseCase() }
@@ -91,7 +91,8 @@ val appModule = module {
             calculateBossStats = get(),
             calculateBattleTurn = get(),
             processBattleResult = get(),
-            calculateFocoArcano = get()
+            calculateFocoArcano = get(),
+            calculateDefenseMultiplierUseCase = get()
         )
     }
     
@@ -166,6 +167,15 @@ val appModule = module {
             appRuleDao = get(),
             saveAppRuleUseCase = get(),
             appUsageRepository = get()
+        )
+    }
+
+    viewModel {
+        HealthViewModel(
+            healthRepository = get(),
+            userPreferencesManager = get(),
+            getYesterdayHealthStats = get(),
+            calculateDefenseMultiplier = get()
         )
     }
 }

@@ -300,7 +300,7 @@ fun MainMenuContent(
             )
         }
         
-        Spacer(modifier = Modifier.height(18.dp))
+        Spacer(modifier = Modifier.height(110.dp))
     }
 }
 
@@ -501,7 +501,7 @@ fun AccountSectionContent(
                 }
             }
             
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(110.dp))
         }
     }
 }
@@ -666,7 +666,7 @@ fun SettingsSectionContent(
                 }
             }
             
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(110.dp))
         }
     }
 }
