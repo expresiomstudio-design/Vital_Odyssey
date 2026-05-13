@@ -59,6 +59,7 @@ val appModule = module {
     single { get<AppDatabase>().habitDao() }
     single { get<AppDatabase>().userDao() }
     single { get<AppDatabase>().appRuleDao() }
+    single { get<AppDatabase>().bossDao() }
 
     // 4. Casos de Uso
     factory { CalculatePlayerStatsUseCase() }

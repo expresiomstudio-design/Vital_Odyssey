@@ -10,7 +10,7 @@ data class UserProfile(
     val currentXp: Int,
     val currentHp: Int,
     val currentStamina: Int,
-    val presenceStreak: Int,
+    val presenceStreak: Int = 0,
     val highestStreak: Int,
     val bossesDefeated: List<String>,
     val cutoffTime: String,

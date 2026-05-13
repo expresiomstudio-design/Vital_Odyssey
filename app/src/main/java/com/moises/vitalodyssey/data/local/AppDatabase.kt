@@ -6,13 +6,14 @@ import androidx.room.TypeConverters
 import com.moises.vitalodyssey.domain.model.Habit
 import com.moises.vitalodyssey.domain.model.HabitLog
 
-@Database(entities = [Habit::class, HabitLog::class, UserEntity::class, AppRuleEntity::class], version = 6, exportSchema = false)
+@Database(entities = [Habit::class, HabitLog::class, UserEntity::class, AppRuleEntity::class, BossEntity::class], version = 7, exportSchema = false)
 @TypeConverters(HabitTypeConverters::class) // ¡Importante para que no falle al compilar!
 abstract class AppDatabase : RoomDatabase() {
 
     abstract fun habitDao(): HabitDao
     abstract fun userDao(): UserDao
     abstract fun appRuleDao(): AppRuleDao
+    abstract fun bossDao(): BossDao
 
     companion object {
         val MIGRATION_3_4 = object : androidx.room.migration.Migration(3, 4) {
