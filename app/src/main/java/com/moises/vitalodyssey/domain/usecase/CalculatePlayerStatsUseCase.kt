@@ -22,7 +22,7 @@ class CalculatePlayerStatsUseCase {
         return PlayerStats(
             level = level,
             maxHp = maxHp,
-            faintHp = maxHp / 2,
+            faintHp = (maxHp * com.moises.vitalodyssey.domain.model.GameConstants.FAINT_HP_RATIO).toInt(),
             baseAttack = baseAttack,
             baseDefense = baseDefense,
             xpForNextLevel = xpReq

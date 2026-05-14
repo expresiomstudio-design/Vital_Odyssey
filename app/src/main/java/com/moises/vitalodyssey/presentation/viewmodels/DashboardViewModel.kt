@@ -99,8 +99,8 @@ class DashboardViewModel(
                 defensiveHabitsTotal = 2,
                 defensiveHabitsCompleted = 1,
                 isManualAttack = true,
-                healthBonusMultiplier = 1.0f,
-                currentStreak = 2
+                maxOffensiveScore = 50, // TODO: Fetch real score
+                presenceStreak = currentProfile.presenceStreak
             )
 
             val newState = processBattleResult(

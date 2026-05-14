@@ -65,7 +65,7 @@ val appModule = module {
     factory { CalculatePlayerStatsUseCase() }
     factory { CalculateBattleTurnUseCase(get()) }
     factory { CalculateBossStatsUseCase() }
-    factory { ProcessBattleResultUseCase(get()) }
+    single { ProcessBattleResultUseCase(get(), get()) }
     factory { CalculateHabitScoreUseCase() }
     factory { EvaluateHabitStateUseCase() }
     factory { EvaluateStrictStateUseCase() }

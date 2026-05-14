@@ -1,5 +1,6 @@
 package com.moises.vitalodyssey.domain.usecase
 
+import com.moises.vitalodyssey.domain.model.GameConstants
 import com.moises.vitalodyssey.domain.usecase.health.CalculateDefenseMultiplierUseCase
 
 data class BattleResult(
@@ -12,7 +13,6 @@ data class BattleResult(
 class CalculateBattleTurnUseCase(
     private val calculateDefenseMultiplierUseCase: CalculateDefenseMultiplierUseCase
 ) {
-
     suspend operator fun invoke(
         playerStats: PlayerStats,
         bossAttack: Int,
@@ -21,44 +21,50 @@ class CalculateBattleTurnUseCase(
         defensiveHabitsTotal: Int,
         defensiveHabitsCompleted: Int,
         isManualAttack: Boolean,
-        healthBonusMultiplier: Float,
-        currentStreak: Int
+        maxOffensiveScore: Int,
+        presenceStreak: Int
     ): BattleResult {
+        // 1. Obtener el multiplicador de Defensa (Salud)
+        val defenseMultiplier = calculateDefenseMultiplierUseCase()
 
+        // 2. Calcular Multiplicadores de Daño
+        val attackMultiplier = 1.0f + (maxOffensiveScore.coerceAtMost(GameConstants.MAX_OFFENSIVE_STREAK) / 200f)
+        val presenceBonus = if (isManualAttack) {
+            GameConstants.BASE_PRESENCE_BONUS + (presenceStreak.coerceAtMost(GameConstants.MAX_PRESENCE_STREAK) / 600f)
+        } else {
+            0f
+        }
+        val totalDamageMultiplier = attackMultiplier + (defenseMultiplier - 1.0f) + presenceBonus
+
+        // 3. Calcular Daño al Jefe
         val attackCompletionRate = if (offensiveHabitsTotal > 0) offensiveHabitsCompleted.toFloat() / offensiveHabitsTotal else 0f
         val baseDamage = playerStats.baseAttack * attackCompletionRate
+        val damageDealt = (baseDamage * totalDamageMultiplier).toInt()
 
-        val presenceMultiplier = if (isManualAttack) 0.1f else 0f
-        val streakMultiplier = (currentStreak * 0.05f).coerceAtMost(0.5f)
-        val totalMultiplier = 1.0f + presenceMultiplier + streakMultiplier + (healthBonusMultiplier - 1.0f)
-
-        val damageDealt = (baseDamage * totalMultiplier).toInt()
-
-        val defenseCompletionRate = if (defensiveHabitsTotal > 0) defensiveHabitsCompleted.toFloat() / defensiveHabitsTotal else 0f
-        val maxHealingPossible = playerStats.maxHp * 0.10f
-        val hpHealed = (maxHealingPossible * defenseCompletionRate).toInt()
-
-        // 1. Obtener el multiplicador del escudo de salud
-        val healthShieldMultiplier = calculateDefenseMultiplierUseCase()
-
-        // 2. Aplicar el multiplicador a la defensa base del jugador
-        val effectiveDefense = (playerStats.baseDefense * healthShieldMultiplier).toInt()
-
-        // 3. Calcular el daño final
+        // 4. Calcular Daño Recibido
+        val effectiveDefense = (playerStats.baseDefense * defenseMultiplier).toInt()
         val damageReceived = (bossAttack - effectiveDefense).coerceAtLeast(0)
 
-        val totalCompleted = offensiveHabitsCompleted + defensiveHabitsCompleted
-        var xpEarned = totalCompleted * 10
-        if (isManualAttack) xpEarned += 20
-        xpEarned += (currentStreak * 5)
+        // 5. Calcular Curación
+        val defenseCompletionRate = if (defensiveHabitsTotal > 0) defensiveHabitsCompleted.toFloat() / defensiveHabitsTotal else 0f
+        val maxHealingPossible = playerStats.maxHp * GameConstants.MAX_DAILY_HEAL_RATIO
+        val hpHealed = (maxHealingPossible * defenseCompletionRate).toInt()
 
-        if (healthBonusMultiplier >= 1.5f) {
-            xpEarned += 50
-        } else if (healthBonusMultiplier > 1.0f) {
-            xpEarned += 30
+        // 6. Calcular Experiencia
+        val totalHabits = offensiveHabitsTotal + defensiveHabitsTotal
+        val completedHabits = offensiveHabitsCompleted + defensiveHabitsCompleted
+        val habitCompletionRate = if (totalHabits > 0) completedHabits.toFloat() / totalHabits else 0f
+
+        var xpEarned = (habitCompletionRate * GameConstants.MAX_HABITS_XP).toInt()
+        
+        if (defenseMultiplier >= GameConstants.OPTIMAL_DEFENSE_THRESHOLD) {
+            xpEarned += GameConstants.OPTIMAL_HEALTH_XP_BONUS
         }
-
-        xpEarned /= 2
+        
+        if (isManualAttack) {
+            val presenceXpMultiplier = 1.0f + (presenceStreak.coerceAtMost(GameConstants.MAX_PRESENCE_STREAK) / 60f)
+            xpEarned += (GameConstants.MANUAL_ATTACK_BASE_XP * presenceXpMultiplier).toInt()
+        }
 
         return BattleResult(
             damageDealtToBoss = damageDealt,
