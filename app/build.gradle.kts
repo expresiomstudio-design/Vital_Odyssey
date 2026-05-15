@@ -84,4 +84,11 @@ dependencies {
     implementation(libs.compose.icons.lucide)
 
     testImplementation("junit:junit:4.13.2")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
+}
+
+// ConfiguraciÃ³n de tests
+tasks.withType<Test> {
+    useJUnit()
+    maxParallelForks = (Runtime.getRuntime().availableProcessors() / 2).coerceAtLeast(1)
 }

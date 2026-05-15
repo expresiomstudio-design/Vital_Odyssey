@@ -2,7 +2,10 @@ package com.moises.vitalodyssey.presentation.viewmodels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.moises.vitalodyssey.data.local.BossDao
+import com.moises.vitalodyssey.data.local.BossEntity
 import com.moises.vitalodyssey.data.local.Difficulty
+import com.moises.vitalodyssey.data.local.HabitDao
 import com.moises.vitalodyssey.domain.repository.UserRepository
 import com.moises.vitalodyssey.domain.usecase.*
 import com.moises.vitalodyssey.domain.usecase.apprules.CalculateFocoArcanoUseCase
@@ -22,7 +25,10 @@ data class DashboardUiState(
     val attackMultiplier: Float = 1.0f,
     val defenseStat: Int = 10,
     val defenseMultiplier: Float = 1.0f,
-    val combatLog: String = "La noche es oscura, pero tu voluntad es de hierro."
+    val combatLog: String = "La noche es oscura, pero tu voluntad es de hierro.",
+    val currentBoss: BossEntity? = null,
+    val lastBattleResult: BattleResult? = null,
+    val showBattleReport: Boolean = false
 )
 
 class DashboardViewModel(
@@ -32,102 +38,150 @@ class DashboardViewModel(
     private val calculateBattleTurn: CalculateBattleTurnUseCase,
     private val processBattleResult: ProcessBattleResultUseCase,
     private val calculateFocoArcano: CalculateFocoArcanoUseCase,
-    private val calculateDefenseMultiplierUseCase: CalculateDefenseMultiplierUseCase
+    private val calculateDefenseMultiplierUseCase: CalculateDefenseMultiplierUseCase,
+    private val bossDao: BossDao,
+    private val habitDao: HabitDao
 ) : ViewModel() {
+
+    private val _uiState = MutableStateFlow(DashboardUiState())
+    val uiState: StateFlow<DashboardUiState> = _uiState.asStateFlow()
 
     private var currentLog = "La noche es oscura, pero tu voluntad es de hierro."
 
-    val uiState: StateFlow<DashboardUiState> = userRepository.getUserProfile().map { profile ->
-        if (profile == null) return@map DashboardUiState()
-        
-        val stats = calculateStats(profile.level)
-        val defMult = calculateDefenseMultiplierUseCase()
-        
-        // Mocking attackMultiplier until a UseCase is available
-        val atkMult = 1.2f
-
-        val hpRange = (stats.maxHp - stats.faintHp).toFloat()
-        val currentVisualHp = (profile.currentHp - stats.faintHp).coerceAtLeast(0).toFloat()
-        val hpPercent = if (hpRange > 0) currentVisualHp / hpRange else 0f
-
-        val xpPercent = if (stats.xpForNextLevel > 0) {
-            profile.currentXp.toFloat() / stats.xpForNextLevel.toFloat()
-        } else 0f
-
-        DashboardUiState(
-            level = profile.level,
-            hpText = "${profile.currentHp} / ${stats.maxHp} HP",
-            visualHpPercent = hpPercent,
-            xpText = "${profile.currentXp} / ${stats.xpForNextLevel} XP",
-            visualXpPercent = xpPercent,
-            currentStamina = profile.currentStamina,
-            presenceStreak = profile.presenceStreak,
-            attackStat = stats.baseAttack,
-            attackMultiplier = atkMult,
-            defenseStat = stats.baseDefense,
-            defenseMultiplier = defMult,
-            combatLog = currentLog
-        )
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
-        initialValue = DashboardUiState()
-    )
-
-    fun simulateAttack() {
+    init {
         viewModelScope.launch {
-            val currentProfile = userRepository.getUserProfile().firstOrNull() ?: return@launch
+            // Inicializar el Jefe si la base de datos está vacía
+            val existingBoss = bossDao.getCurrentBoss()
+            if (existingBoss == null) {
+                bossDao.insertBoss(
+                    BossEntity(
+                        id = 1,
+                        name = "Titan Procrastinador",
+                        imageAssetId = "titan_1",
+                        difficulty = "NORMAL",
+                        maxHp = 5000,
+                        currentHp = 5000,
+                        baseAttack = 150
+                    )
+                )
+            }
 
-            if (currentProfile.currentStamina < 33) {
+            bossDao.getCurrentBossFlow().collect { boss ->
+                _uiState.update { it.copy(currentBoss = boss) }
+            }
+        }
+        
+        viewModelScope.launch {
+            userRepository.getUserProfile().collect { profile ->
+                if (profile == null) return@collect
+                
+                val stats = calculateStats(profile.level)
+                val defMult = calculateDefenseMultiplierUseCase()
+                
+                // Mocking attackMultiplier until a UseCase is available
+                val atkMult = 1.2f
+
+                val hpRange = (stats.maxHp - stats.faintHp).toFloat()
+                val currentVisualHp = (profile.currentHp - stats.faintHp).coerceAtLeast(0).toFloat()
+                val hpPercent = if (hpRange > 0) currentVisualHp / hpRange else 0f
+
+                val xpPercent = if (stats.xpForNextLevel > 0) {
+                    profile.currentXp.toFloat() / stats.xpForNextLevel.toFloat()
+                } else 0f
+
+                _uiState.update { currentState ->
+                    currentState.copy(
+                        level = profile.level,
+                        hpText = "${profile.currentHp} / ${stats.maxHp} HP",
+                        visualHpPercent = hpPercent,
+                        xpText = "${profile.currentXp} / ${stats.xpForNextLevel} XP",
+                        visualXpPercent = xpPercent,
+                        currentStamina = profile.currentStamina,
+                        presenceStreak = profile.presenceStreak,
+                        attackStat = stats.baseAttack,
+                        attackMultiplier = atkMult,
+                        defenseStat = stats.baseDefense,
+                        defenseMultiplier = defMult,
+                        combatLog = currentLog
+                    )
+                }
+            }
+        }
+    }
+
+    fun onAttackClicked() {
+        viewModelScope.launch {
+            val currentState = _uiState.value
+            if (currentState.currentStamina < 33) {
                 currentLog = "No tienes suficiente estamina (Foco Arcano) para atacar."
-                // Forzar actualización para que se vea el log si no hay cambio de datos
-                userRepository.updateStats(currentProfile) 
+                _uiState.update { it.copy(combatLog = currentLog) }
                 return@launch
             }
 
-            val newStamina = currentProfile.currentStamina - 33
-            val newStreak = currentProfile.presenceStreak + 1
+            // 1. Descontar Estamina inmediatamente
+            val newStamina = (currentState.currentStamina - 33).coerceAtLeast(0)
 
-            val bossAttack = calculateBossStats(currentProfile.level, Difficulty.NORMAL)
-            val playerStats = calculateStats(currentProfile.level)
+            // 2. Recopilar datos
+            val user = userRepository.getUserProfile().firstOrNull() ?: return@launch
+            val boss = bossDao.getCurrentBoss() ?: return@launch
+            val playerStats = calculateStats(user.level)
+            
+            // TODO: Obtener completitud real de la BD. Por ahora simulamos 80% ofensivo y 50% defensivo
+            val offTotal = 5; val offCompleted = 4
+            val defTotal = 2; val defCompleted = 1
 
+            // 3. Calcular Turno (Ataque Manual = true)
             val battleResult = calculateBattleTurn(
                 playerStats = playerStats,
-                bossAttack = bossAttack,
-                offensiveHabitsTotal = 10,
-                offensiveHabitsCompleted = 6,
-                defensiveHabitsTotal = 2,
-                defensiveHabitsCompleted = 1,
+                bossAttack = boss.baseAttack,
+                offensiveHabitsTotal = offTotal,
+                offensiveHabitsCompleted = offCompleted,
+                defensiveHabitsTotal = defTotal,
+                defensiveHabitsCompleted = defCompleted,
                 isManualAttack = true,
-                maxOffensiveScore = 50, // TODO: Fetch real score
-                presenceStreak = currentProfile.presenceStreak
+                maxOffensiveScore = 100, // TODO: Reemplazar por max score real
+                presenceStreak = user.presenceStreak
             )
 
-            val newState = processBattleResult(
-                currentLevel = currentProfile.level,
-                currentXp = currentProfile.currentXp,
-                currentHp = currentProfile.currentHp,
+            // 4. Procesar y guardar el resultado
+            val updatedState = processBattleResult(
+                currentLevel = user.level,
+                currentXp = user.currentXp,
+                currentHp = user.currentHp,
                 battleResult = battleResult
             )
 
-            currentLog = if (newState.didLevelUp) {
-                "¡NIVEL ${newState.newLevel} ALCANZADO! Tu voluntad se fortalece."
-            } else if (newState.isFainted) {
+            currentLog = if (updatedState.didLevelUp) {
+                "¡NIVEL ${updatedState.newLevel} ALCANZADO! Tu voluntad se fortalece."
+            } else if (updatedState.isFainted) {
                 "Te has desmayado. El jefe recupera fuerzas. Mañana será otro día."
             } else {
                 "El Jefe ataca (${battleResult.damageReceivedFromBoss} DMG). Te curas ${battleResult.hpHealed} HP."
             }
 
-            val updatedProfile = currentProfile.copy(
-                currentStamina = newStamina,
-                currentHp = newState.newHp,
-                currentXp = newState.newXp,
-                level = newState.newLevel,
-                presenceStreak = newStreak
+            // 5. Actualizar el Usuario en BD con los nuevos valores de vida y XP
+            userRepository.updateStats(
+                user.copy(
+                    level = updatedState.newLevel,
+                    currentXp = updatedState.newXp,
+                    currentHp = updatedState.newHp,
+                    presenceStreak = if (updatedState.isFainted) 0 else user.presenceStreak + 1,
+                    currentStamina = newStamina
+                )
             )
-            
-            userRepository.updateStats(updatedProfile)
+
+            // 6. Actualizar UI y mostrar el reporte de batalla
+            _uiState.update { it.copy(
+                currentStamina = newStamina,
+                lastBattleResult = battleResult,
+                showBattleReport = true,
+                combatLog = currentLog
+            )}
         }
+    }
+
+    fun dismissBattleReport() {
+        _uiState.update { it.copy(showBattleReport = false, lastBattleResult = null) }
     }
 
     fun dailyReset() {

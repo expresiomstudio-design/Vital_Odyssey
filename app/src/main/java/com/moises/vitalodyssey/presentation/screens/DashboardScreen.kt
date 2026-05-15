@@ -29,6 +29,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.composables.icons.lucide.*
+import com.moises.vitalodyssey.data.local.BossEntity
+import com.moises.vitalodyssey.presentation.components.BattleReportDialog
 import com.moises.vitalodyssey.presentation.components.VitalOdysseyBottomNavBar
 import com.moises.vitalodyssey.presentation.viewmodels.DashboardUiState
 import com.moises.vitalodyssey.presentation.viewmodels.DashboardViewModel
@@ -44,7 +46,8 @@ fun DashboardScreen(
 
     DashboardScreenContent(
         uiState = uiState,
-        onSimulateAttack = { viewModel.simulateAttack() },
+        onAttackClicked = { viewModel.onAttackClicked() },
+        onDismissBattleReport = { viewModel.dismissBattleReport() },
         onNavigateToProfile = onNavigateToProfile
     )
 }
@@ -52,7 +55,8 @@ fun DashboardScreen(
 @Composable
 fun DashboardScreenContent(
     uiState: DashboardUiState,
-    onSimulateAttack: () -> Unit,
+    onAttackClicked: () -> Unit,
+    onDismissBattleReport: () -> Unit,
     onNavigateToProfile: () -> Unit
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
@@ -72,7 +76,7 @@ fun DashboardScreenContent(
 
                 AttributesRow(uiState)
 
-                BossEncounterCard(uiState.combatLog)
+                BossEncounterCard(boss = uiState.currentBoss, logText = uiState.combatLog)
 
                 Spacer(modifier = Modifier.height(16.dp))
             }
@@ -81,11 +85,18 @@ fun DashboardScreenContent(
         // ── Botón de ataque flotante ─────────────────────────────────────────
         AttackFab(
             isEnabled = uiState.currentStamina >= 33,
-            onAttack = onSimulateAttack,
+            onAttack = onAttackClicked,
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(end = 16.dp, bottom = 120.dp)
         )
+
+        if (uiState.showBattleReport && uiState.lastBattleResult != null) {
+            BattleReportDialog(
+                result = uiState.lastBattleResult,
+                onDismiss = onDismissBattleReport
+            )
+        }
     }
 }
 
@@ -290,7 +301,13 @@ fun AttributeCard(modifier: Modifier, label: String, value: String, subValue: St
 }
 
 @Composable
-fun BossEncounterCard(logText: String) {
+fun BossEncounterCard(boss: BossEntity?, logText: String) {
+    if (boss == null) {
+        // Skeleton de carga si no hay jefe aún
+        Box(modifier = Modifier.fillMaxWidth().height(220.dp).background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(32.dp)))
+        return
+    }
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -299,20 +316,21 @@ fun BossEncounterCard(logText: String) {
             .border(1.dp, MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f), RoundedCornerShape(32.dp))
             .background(MaterialTheme.colorScheme.surfaceVariant)
     ) {
+        // TODO: En el futuro cambiar a AsyncImage cargando boss.imageAssetId desde los assets locales
         AsyncImage(
-            model = "https://picsum.photos/seed/titan/800/1200",
+            model = "https://picsum.photos/seed/titan/800/1200", 
             contentDescription = null,
             modifier = Modifier.fillMaxSize().alpha(0.3f),
             contentScale = ContentScale.Crop
         )
         Column(
-            modifier = Modifier.fillMaxSize().padding(16.dp),
+            modifier = Modifier.fillMaxSize().padding(16.dp), 
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
             Surface(color = MaterialTheme.colorScheme.error, shape = CircleShape) {
                 Text(
-                    "JEFE ELITE",
+                    "NIVEL DE AMENAZA: ${boss.difficulty}", 
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
@@ -320,11 +338,28 @@ fun BossEncounterCard(logText: String) {
             }
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                "TITAN PROCRASTINADOR",
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onSurface,
+                boss.name, 
+                style = MaterialTheme.typography.titleLarge, 
+                color = MaterialTheme.colorScheme.onSurface, 
                 textAlign = TextAlign.Center
             )
+            
+            // Barra de Vida del Jefe
+            Spacer(modifier = Modifier.height(16.dp))
+            val hpProgress = if (boss.maxHp > 0) boss.currentHp.toFloat() / boss.maxHp.toFloat() else 0f
+            val animatedHp by animateFloatAsState(targetValue = hpProgress, label = "bossHp")
+            LinearProgressIndicator(
+                progress = { animatedHp },
+                modifier = Modifier.fillMaxWidth(0.8f).height(12.dp).clip(RoundedCornerShape(50)),
+                color = androidx.compose.ui.graphics.Color(0xFFE91E63),
+                trackColor = androidx.compose.ui.graphics.Color(0xFFE91E63).copy(alpha = 0.2f)
+            )
+            Text(
+                "${boss.currentHp} / ${boss.maxHp} HP", 
+                style = MaterialTheme.typography.labelMedium,
+                modifier = Modifier.padding(top = 4.dp)
+            )
+            
             Text(
                 logText,
                 style = MaterialTheme.typography.bodyMedium,
@@ -421,7 +456,8 @@ fun DashboardScreenPreview() {
                 defenseMultiplier = 1.2f,
                 combatLog = "El dragón ruge ferozmente."
             ),
-            onSimulateAttack = {},
+            onAttackClicked = {},
+            onDismissBattleReport = {},
             onNavigateToProfile = {}
         )
     }

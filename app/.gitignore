@@ -1,1 +1,7 @@
-/build
+# Cache y archivos de entorno
+.gradle_home/
+.gradle/
+.idea/
+build/
+*/build/
+local.properties

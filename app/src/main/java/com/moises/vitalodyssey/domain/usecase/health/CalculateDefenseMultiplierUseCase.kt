@@ -23,12 +23,12 @@ import kotlinx.coroutines.flow.first
  * | `isReported == true`    | **1.2×**  (premio por disciplina) |
  * | `isReported == false`   | **0.8×**  (penalización)          |
  */
-class CalculateDefenseMultiplierUseCase(
+open class CalculateDefenseMultiplierUseCase(
     private val getYesterdayHealthStatsUseCase: GetYesterdayHealthStatsUseCase,
     private val userPreferencesManager: UserPreferencesManager
 ) {
 
-    suspend operator fun invoke(): Float {
+    open suspend operator fun invoke(): Float {
         val stats = getYesterdayHealthStatsUseCase()
         val isAutomatic = userPreferencesManager.healthConnectEnabledFlow.first()
 

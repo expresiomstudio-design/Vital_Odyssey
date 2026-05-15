@@ -1,6 +1,7 @@
 package com.moises.vitalodyssey.domain.usecase
 
 import com.moises.vitalodyssey.domain.model.GameConstants
+import com.moises.vitalodyssey.domain.usecase.PlayerStats
 import com.moises.vitalodyssey.domain.usecase.health.CalculateDefenseMultiplierUseCase
 
 data class BattleResult(
@@ -10,9 +11,19 @@ data class BattleResult(
     val xpEarned: Int
 )
 
+/** Abstracción mínima para poder inyectar fakes en tests sin heredar la clase concreta. */
+fun interface DefenseMultiplierProvider {
+    suspend fun getMultiplier(): Float
+}
+
 class CalculateBattleTurnUseCase(
-    private val calculateDefenseMultiplierUseCase: CalculateDefenseMultiplierUseCase
+    private val defenseProvider: DefenseMultiplierProvider
 ) {
+    /** Convenience constructor para producción: envuelve el UseCase real. */
+    constructor(useCase: CalculateDefenseMultiplierUseCase) : this(
+        DefenseMultiplierProvider { useCase() }
+    )
+
     suspend operator fun invoke(
         playerStats: PlayerStats,
         bossAttack: Int,
@@ -24,8 +35,13 @@ class CalculateBattleTurnUseCase(
         maxOffensiveScore: Int,
         presenceStreak: Int
     ): BattleResult {
-        // 1. Obtener el multiplicador de Defensa (Salud)
-        val defenseMultiplier = calculateDefenseMultiplierUseCase()
+        // 1. Obtener el multiplicador de Defensa (Salud) BLINDADO
+        val defenseMultiplier = try {
+            defenseProvider.getMultiplier()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            1.0f
+        }
 
         // 2. Calcular Multiplicadores de Daño
         val attackMultiplier = 1.0f + (maxOffensiveScore.coerceAtMost(GameConstants.MAX_OFFENSIVE_STREAK) / 200f)

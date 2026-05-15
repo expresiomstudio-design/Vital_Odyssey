@@ -63,7 +63,7 @@ val appModule = module {
 
     // 4. Casos de Uso
     factory { CalculatePlayerStatsUseCase() }
-    factory { CalculateBattleTurnUseCase(get()) }
+    factory { CalculateBattleTurnUseCase(get<CalculateDefenseMultiplierUseCase>()) }
     factory { CalculateBossStatsUseCase() }
     single { ProcessBattleResultUseCase(get(), get()) }
     factory { CalculateHabitScoreUseCase() }
@@ -93,7 +93,9 @@ val appModule = module {
             calculateBattleTurn = get(),
             processBattleResult = get(),
             calculateFocoArcano = get(),
-            calculateDefenseMultiplierUseCase = get()
+            calculateDefenseMultiplierUseCase = get(),
+            bossDao = get(),
+            habitDao = get()
         )
     }
     
