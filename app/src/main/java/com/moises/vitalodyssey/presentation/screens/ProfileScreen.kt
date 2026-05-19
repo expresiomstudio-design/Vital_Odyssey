@@ -70,8 +70,12 @@ fun ProfileScreen(
         onUpdateName = { viewModel.updateName(it) },
         onUpdateStartOfWeek = { viewModel.updateStartOfWeek(it) },
         onUpdateCutoffTime = { viewModel.updateCutoffTime(it) },
+        onUpdateDeveloperMode = { viewModel.setDeveloperMode(it) },
         onReauthenticate = { password, isGoogle -> viewModel.reauthenticateAndDelete(password, isGoogle) },
-        onDismissReauth = { viewModel.dismissReauthDialog() }
+        onDismissReauth = { viewModel.dismissReauthDialog() },
+        onUpdateEmail = { currentPass, newEmail -> viewModel.updateEmail(currentPass, newEmail) },
+        onUpdatePassword = { currentPass, newPass -> viewModel.updatePassword(currentPass, newPass) },
+        onDismissUpdateMessages = { viewModel.dismissUpdateMessages() }
     )
 }
 
@@ -86,8 +90,12 @@ fun ProfileScreenContent(
     onUpdateName: (String) -> Unit = {},
     onUpdateStartOfWeek: (String) -> Unit = {},
     onUpdateCutoffTime: (String) -> Unit = {},
+    onUpdateDeveloperMode: (Boolean) -> Unit = {},
     onReauthenticate: (String, Boolean) -> Unit = { _, _ -> },
-    onDismissReauth: () -> Unit = {}
+    onDismissReauth: () -> Unit = {},
+    onUpdateEmail: (String, String) -> Unit = { _, _ -> },
+    onUpdatePassword: (String, String) -> Unit = { _, _ -> },
+    onDismissUpdateMessages: () -> Unit = {}
 ) {
     Box(
         modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)
@@ -108,12 +116,16 @@ fun ProfileScreenContent(
                     onUpdateName = onUpdateName,
                     onBack = { onSectionChange(ProfileSection.MAIN_MENU) },
                     onReauthenticate = onReauthenticate,
-                    onDismissReauth = onDismissReauth
+                    onDismissReauth = onDismissReauth,
+                    onUpdateEmail = onUpdateEmail,
+                    onUpdatePassword = onUpdatePassword,
+                    onDismissUpdateMessages = onDismissUpdateMessages
                 )
                 ProfileSection.SETTINGS -> SettingsSectionContent(
                     uiState = uiState,
                     onUpdateStartOfWeek = onUpdateStartOfWeek,
                     onUpdateCutoffTime = onUpdateCutoffTime,
+                    onUpdateDeveloperMode = onUpdateDeveloperMode,
                     onBack = { onSectionChange(ProfileSection.MAIN_MENU) }
                 )
             }
@@ -358,11 +370,15 @@ fun AccountSectionContent(
     onUpdateName: (String) -> Unit = {},
     onBack: () -> Unit,
     onReauthenticate: (String, Boolean) -> Unit = { _, _ -> },
-    onDismissReauth: () -> Unit = {}
+    onDismissReauth: () -> Unit = {},
+    onUpdateEmail: (String, String) -> Unit = { _, _ -> },
+    onUpdatePassword: (String, String) -> Unit = { _, _ -> },
+    onDismissUpdateMessages: () -> Unit = {}
 ) {
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
     var passwordText by remember { mutableStateOf("") }
+    var passwordTextVisible by remember { mutableStateOf(false) }
     var nameText by remember(uiState.playerName) { mutableStateOf(uiState.playerName) }
     val isGoogleUser = uiState.loginProvider == "google.com"
     val hasNameChanged = nameText != uiState.playerName && nameText.isNotBlank()
@@ -416,7 +432,15 @@ fun AccountSectionContent(
                             onValueChange = { passwordText = it },
                             label = { Text("Contraseña actual") },
                             isError = uiState.reauthError != null,
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
+                            visualTransformation = if (passwordTextVisible) androidx.compose.ui.text.input.VisualTransformation.None else androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Password),
+                            trailingIcon = {
+                                val icon = if (passwordTextVisible) Lucide.EyeOff else Lucide.Eye
+                                IconButton(onClick = { passwordTextVisible = !passwordTextVisible }) {
+                                    Icon(rememberVectorPainter(icon), contentDescription = null)
+                                }
+                            }
                         )
                         if (uiState.reauthError != null) {
                             Text(uiState.reauthError, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
@@ -497,15 +521,180 @@ fun AccountSectionContent(
                 }
             )
 
+            var showEmailDialog by remember { mutableStateOf(false) }
+            var showPasswordDialog by remember { mutableStateOf(false) }
+            var newEmailText by remember { mutableStateOf("") }
+            var newPasswordText by remember { mutableStateOf("") }
+            var newPasswordVisible by remember { mutableStateOf(false) }
+            var confirmPasswordText by remember { mutableStateOf("") }
+            var confirmPasswordVisible by remember { mutableStateOf(false) }
+            var currentPasswordForReauth by remember { mutableStateOf("") }
+            var currentPasswordVisible by remember { mutableStateOf(false) }
+
+            if (showEmailDialog) {
+                AlertDialog(
+                    onDismissRequest = { showEmailDialog = false },
+                    title = { Text("Cambiar Correo") },
+                    text = {
+                        Column {
+                            OutlinedTextField(
+                                value = newEmailText,
+                                onValueChange = { newEmailText = it },
+                                label = { Text("Nuevo Correo") },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            OutlinedTextField(
+                                value = currentPasswordForReauth,
+                                onValueChange = { currentPasswordForReauth = it },
+                                label = { Text("Contraseña Actual") },
+                                modifier = Modifier.fillMaxWidth(),
+                                visualTransformation = if (currentPasswordVisible) androidx.compose.ui.text.input.VisualTransformation.None else androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Password),
+                                trailingIcon = {
+                                    val icon = if (currentPasswordVisible) Lucide.EyeOff else Lucide.Eye
+                                    IconButton(onClick = { currentPasswordVisible = !currentPasswordVisible }) {
+                                        Icon(rememberVectorPainter(icon), contentDescription = null)
+                                    }
+                                }
+                            )
+                            if (uiState.updateError != null) {
+                                Text(uiState.updateError, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
+                            }
+                        }
+                    },
+                    confirmButton = {
+                        TextButton(onClick = { 
+                            onUpdateEmail(currentPasswordForReauth, newEmailText) 
+                        }) {
+                            Text("GUARDAR")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { 
+                            showEmailDialog = false 
+                            onDismissUpdateMessages()
+                        }) { Text("CANCELAR") }
+                    }
+                )
+            }
+
+            if (showPasswordDialog) {
+                AlertDialog(
+                    onDismissRequest = { showPasswordDialog = false },
+                    title = { Text("Cambiar Contraseña") },
+                    text = {
+                        Column {
+                            OutlinedTextField(
+                                value = newPasswordText,
+                                onValueChange = { newPasswordText = it },
+                                label = { Text("Nueva Contraseña") },
+                                modifier = Modifier.fillMaxWidth(),
+                                visualTransformation = if (newPasswordVisible) androidx.compose.ui.text.input.VisualTransformation.None else androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Password),
+                                trailingIcon = {
+                                    val icon = if (newPasswordVisible) Lucide.EyeOff else Lucide.Eye
+                                    IconButton(onClick = { newPasswordVisible = !newPasswordVisible }) {
+                                        Icon(rememberVectorPainter(icon), contentDescription = null)
+                                    }
+                                }
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            OutlinedTextField(
+                                value = confirmPasswordText,
+                                onValueChange = { confirmPasswordText = it },
+                                label = { Text("Confirmar Contraseña") },
+                                modifier = Modifier.fillMaxWidth(),
+                                visualTransformation = if (confirmPasswordVisible) androidx.compose.ui.text.input.VisualTransformation.None else androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Password),
+                                trailingIcon = {
+                                    val icon = if (confirmPasswordVisible) Lucide.EyeOff else Lucide.Eye
+                                    IconButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) {
+                                        Icon(rememberVectorPainter(icon), contentDescription = null)
+                                    }
+                                }
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            OutlinedTextField(
+                                value = currentPasswordForReauth,
+                                onValueChange = { currentPasswordForReauth = it },
+                                label = { Text("Contraseña Actual") },
+                                modifier = Modifier.fillMaxWidth(),
+                                visualTransformation = if (currentPasswordVisible) androidx.compose.ui.text.input.VisualTransformation.None else androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Password),
+                                trailingIcon = {
+                                    val icon = if (currentPasswordVisible) Lucide.EyeOff else Lucide.Eye
+                                    IconButton(onClick = { currentPasswordVisible = !currentPasswordVisible }) {
+                                        Icon(rememberVectorPainter(icon), contentDescription = null)
+                                    }
+                                }
+                            )
+                            if (newPasswordText != confirmPasswordText && confirmPasswordText.isNotEmpty()) {
+                                Text("Las contraseñas no coinciden", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
+                            }
+                            if (uiState.updateError != null) {
+                                Text(uiState.updateError, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
+                            }
+                        }
+                    },
+                    confirmButton = {
+                        TextButton(
+                            onClick = { onUpdatePassword(currentPasswordForReauth, newPasswordText) },
+                            enabled = newPasswordText.isNotEmpty() && newPasswordText == confirmPasswordText
+                        ) {
+                            Text("GUARDAR")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { 
+                            showPasswordDialog = false 
+                            onDismissUpdateMessages()
+                        }) { Text("CANCELAR") }
+                    }
+                )
+            }
+
+            if (uiState.updateSuccess != null) {
+                AlertDialog(
+                    onDismissRequest = onDismissUpdateMessages,
+                    title = { Text("Éxito") },
+                    text = { Text(uiState.updateSuccess) },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            onDismissUpdateMessages()
+                            showEmailDialog = false
+                            showPasswordDialog = false
+                            currentPasswordForReauth = ""
+                            newEmailText = ""
+                            newPasswordText = ""
+                            confirmPasswordText = ""
+                        }) {
+                            Text("ENTENDIDO")
+                        }
+                    }
+                )
+            }
+
             if (!isGoogleUser) {
                 Row(
                     modifier = Modifier.padding(top = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    TextButton(onClick = { /* Abrir diálogo cambio email */ }) {
+                    TextButton(onClick = { 
+                        currentPasswordForReauth = ""
+                        newEmailText = ""
+                        onDismissUpdateMessages()
+                        showEmailDialog = true 
+                    }) {
                         Text("Cambiar Email")
                     }
-                    TextButton(onClick = { /* Abrir diálogo cambio pass */ }) {
+                    TextButton(onClick = { 
+                        currentPasswordForReauth = ""
+                        newPasswordText = ""
+                        confirmPasswordText = ""
+                        onDismissUpdateMessages()
+                        showPasswordDialog = true 
+                    }) {
                         Text("Cambiar Contraseña")
                     }
                 }
@@ -556,6 +745,7 @@ fun SettingsSectionContent(
     uiState: ProfileUiState,
     onUpdateStartOfWeek: (String) -> Unit = {},
     onUpdateCutoffTime: (String) -> Unit = {},
+    onUpdateDeveloperMode: (Boolean) -> Unit = {},
     onBack: () -> Unit
 ) {
     val daysMap = remember {
@@ -705,6 +895,45 @@ fun SettingsSectionContent(
                     
                     Text(
                         text = "Si se activa, el día actual contará hasta las 3:00 AM del día siguiente. Ideal para héroes nocturnos.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Card(
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Modo Desarrollador",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = if (uiState.developerMode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                        Switch(
+                            checked = uiState.developerMode,
+                            onCheckedChange = { enabled ->
+                                onUpdateDeveloperMode(enabled)
+                            }
+                        )
+                    }
+                    
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    Text(
+                        text = "Activa este modo para obtener estamina infinita (monto alto) para realizar pruebas y derrotar jefes fácilmente.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                     )

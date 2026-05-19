@@ -46,7 +46,7 @@ fun HabitsScreen(
     onNavigateToTracking: (Int) -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    var selectedHabitForLog by remember { mutableStateOf<Habit?>(null) }
+    var selectedHabitWithLogForLog by remember { mutableStateOf<HabitWithLog?>(null) }
 
     // Refrescar datos cada vez que esta pantalla entra en composición
     LaunchedEffect(Unit) {
@@ -55,20 +55,21 @@ fun HabitsScreen(
 
     HabitsScreenContent(
         uiState = uiState,
-        onHabitLogClick = { selectedHabitForLog = it },
+        onHabitLogClick = { selectedHabitWithLogForLog = it },
         onHabitClick = { onNavigateToTracking(it.id) },
         onAddHabit = { onNavigateToForm(-1) },
         onEditHabit = { onNavigateToForm(it.id) }
     )
 
-    if (selectedHabitForLog != null) {
+    if (selectedHabitWithLogForLog != null) {
         HabitLogDialog(
-            habit = selectedHabitForLog!!,
+            habit = selectedHabitWithLogForLog!!.habit,
+            log = selectedHabitWithLogForLog!!.todayLog,
             dateStr = LocalDate.now().toString(),
-            onDismiss = { selectedHabitForLog = null },
+            onDismiss = { selectedHabitWithLogForLog = null },
             onConfirm = { state, value ->
-                viewModel.saveLogForToday(selectedHabitForLog!!, state, value)
-                selectedHabitForLog = null
+                viewModel.saveLogForToday(selectedHabitWithLogForLog!!.habit, state, value)
+                selectedHabitWithLogForLog = null
             }
         )
     }
@@ -77,7 +78,7 @@ fun HabitsScreen(
 @Composable
 fun HabitsScreenContent(
     uiState: HabitsUiState,
-    onHabitLogClick: (Habit) -> Unit = {},
+    onHabitLogClick: (HabitWithLog) -> Unit = {},
     onHabitClick: (Habit) -> Unit = {},
     onAddHabit: () -> Unit = {},
     onEditHabit: (Habit) -> Unit = {}
@@ -109,7 +110,7 @@ fun HabitsScreenContent(
             items(uiState.habitsWithLogs) { habitWithLog ->
                 HabitCard(
                     habitWithLog = habitWithLog,
-                    onLogClick = { onHabitLogClick(habitWithLog.habit) },
+                    onLogClick = { onHabitLogClick(habitWithLog) },
                     onClick = { onHabitClick(habitWithLog.habit) },
                     onLongClick = { onEditHabit(habitWithLog.habit) }
                 )

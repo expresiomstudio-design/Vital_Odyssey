@@ -34,13 +34,17 @@ data class ProfileUiState(
     val bodyType: com.moises.vitalodyssey.domain.model.BodyType? = null,
     val playerClassEnum: com.moises.vitalodyssey.domain.model.PlayerClass? = null,
     val requiresReauth: Boolean = false,
-    val reauthError: String? = null
+    val reauthError: String? = null,
+    val developerMode: Boolean = false,
+    val updateError: String? = null,
+    val updateSuccess: String? = null
 )
 
 class ProfileViewModel(
     private val userRepository: UserRepository,
     private val calculateStats: CalculatePlayerStatsUseCase,
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val userPrefsManager: com.moises.vitalodyssey.data.local.UserPreferencesManager
 ) : ViewModel() {
 
     private val _isLoggedOut = MutableStateFlow(false)
@@ -49,21 +53,26 @@ class ProfileViewModel(
     private val _isSaving = MutableStateFlow(false)
     private val _requiresReauth = MutableStateFlow(false)
     private val _reauthError = MutableStateFlow<String?>(null)
+    private val _updateError = MutableStateFlow<String?>(null)
+    private val _updateSuccess = MutableStateFlow<String?>(null)
 
     val uiState: StateFlow<ProfileUiState> = combine(
         userRepository.getUserProfile(),
+        userPrefsManager.developerModeFlow,
         combine(_isLoggedOut, _showDeleteSuccess, _deleteProgress, _isSaving) { a, b, c, d -> arrayOf(a, b, c, d) },
-        combine(_requiresReauth, _reauthError) { reauth, err -> Pair(reauth, err) }
-    ) { profile, flags1, flags2 ->
+        combine(_requiresReauth, _reauthError, _updateError, _updateSuccess) { a, b, c, d -> arrayOf(a, b, c, d) }
+    ) { profile, devMode, flags1, flags2 ->
         val loggedOut = flags1[0] as Boolean
         val success = flags1[1] as Boolean
         val progress = flags1[2] as Float
         val saving = flags1[3] as Boolean
-        val reauth = flags2.first
-        val reauthErr = flags2.second
+        val reauth = flags2[0] as Boolean
+        val reauthErr = flags2[1] as String?
+        val updateErr = flags2[2] as String?
+        val updateSucc = flags2[3] as String?
 
         if (profile == null && !success) {
-            ProfileUiState(isLoggedOut = loggedOut)
+            ProfileUiState(isLoggedOut = loggedOut, developerMode = devMode)
         } else {
             val stats = profile?.level?.let { calculateStats(it) }
             val provider = FirebaseAuth.getInstance().currentUser?.providerData?.lastOrNull()?.providerId ?: "password"
@@ -92,7 +101,10 @@ class ProfileViewModel(
                 bodyType = profile?.bodyType,
                 playerClassEnum = profile?.playerClass,
                 requiresReauth = reauth,
-                reauthError = reauthErr
+                reauthError = reauthErr,
+                developerMode = devMode,
+                updateError = updateErr,
+                updateSuccess = updateSucc
             )
         }
     }.stateIn(
@@ -194,6 +206,68 @@ class ProfileViewModel(
             } else {
                 _reauthError.value = result.errorMessage ?: "Error al reautenticar"
             }
+        }
+    }
+
+    fun setDeveloperMode(enabled: Boolean) {
+        viewModelScope.launch {
+            userPrefsManager.setDeveloperMode(enabled)
+        }
+    }
+
+    fun dismissUpdateMessages() {
+        _updateError.value = null
+        _updateSuccess.value = null
+    }
+
+    fun updateEmail(currentPassword: String, newEmail: String) {
+        viewModelScope.launch {
+            _isSaving.value = true
+            _updateError.value = null
+            _updateSuccess.value = null
+            
+            val reauthResult = authRepository.reauthenticateWithEmail(currentPassword)
+            if (!reauthResult.isSuccess) {
+                _updateError.value = "Contraseña actual incorrecta."
+                _isSaving.value = false
+                return@launch
+            }
+            
+            val updateResult = authRepository.updateEmail(newEmail)
+            if (updateResult.isSuccess) {
+                _updateSuccess.value = "Correo electrónico actualizado con éxito."
+                // Si el perfil guarda el email localmente, actualizarlo:
+                val currentProfile = userRepository.getUserProfileOnce()
+                if (currentProfile != null) {
+                    userRepository.updateStats(currentProfile.copy(email = newEmail))
+                }
+            } else {
+                _updateError.value = updateResult.errorMessage ?: "Error al actualizar el correo."
+            }
+            _isSaving.value = false
+        }
+    }
+
+    fun updatePassword(currentPassword: String, newPassword: String) {
+        viewModelScope.launch {
+            _isSaving.value = true
+            _updateError.value = null
+            _updateSuccess.value = null
+            
+            val reauthResult = authRepository.reauthenticateWithEmail(currentPassword)
+            if (!reauthResult.isSuccess) {
+                _updateError.value = "Contraseña actual incorrecta."
+                _isSaving.value = false
+                return@launch
+            }
+            
+            val updateResult = authRepository.updatePassword(newPassword)
+            if (updateResult.isSuccess) {
+                _updateSuccess.value = "Contraseña actualizada con éxito."
+            } else {
+                _updateError.value = updateResult.errorMessage ?: "Error al actualizar la contraseña."
+            }
+            _isSaving.value = false
         }
     }
 }

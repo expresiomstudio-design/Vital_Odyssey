@@ -126,14 +126,11 @@ fun VitalOdysseyMainScreen(
                     onNavigateBack = { navController.popBackStack() }
                 )
             }
-            // Redirecciones de compatibilidad por si se navega a rutas antiguas
-            composable("dashboard") { LaunchedEffect(Unit) { navController.navigate("main_container") } }
-            composable("habits") { LaunchedEffect(Unit) { navController.navigate("main_container") } }
-            composable("profile") { LaunchedEffect(Unit) { navController.navigate("main_container") } }
         }
     }
 }
 
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun MainContainerScreen(
     onLogout: () -> Unit,
@@ -141,9 +138,24 @@ fun MainContainerScreen(
     onNavigateToTracking: (Int) -> Unit,
     onNavigateToAppRuleForm: (Int) -> Unit
 ) {
-    val innerNavController = rememberNavController()
-    val navBackStackEntry by innerNavController.currentBackStackEntryAsState()
-    val currentRoute = navBackStackEntry?.destination?.route
+    // Orden de las páginas: 0 = Habits, 1 = Health, 2 = Dashboard, 3 = AppRules, 4 = Profile
+    val pagerState = androidx.compose.foundation.pager.rememberPagerState(initialPage = 2) { 5 }
+    val coroutineScope = rememberCoroutineScope()
+
+    androidx.activity.compose.BackHandler(enabled = pagerState.currentPage != 2) {
+        coroutineScope.launch {
+            pagerState.animateScrollToPage(2)
+        }
+    }
+
+    val currentRoute = when (pagerState.currentPage) {
+        0 -> "habits"
+        1 -> "health"
+        2 -> "dashboard"
+        3 -> "app_rules"
+        4 -> "profile"
+        else -> "dashboard"
+    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surface,
@@ -151,46 +163,50 @@ fun MainContainerScreen(
             VitalOdysseyBottomNavBar(
                 currentRoute = currentRoute,
                 onNavigate = { targetRoute ->
-                    if (currentRoute != targetRoute) {
-                        innerNavController.navigate(targetRoute) {
-                            popUpTo(innerNavController.graph.startDestinationId) {
-                                saveState = true
-                            }
-                            launchSingleTop = true
-                            restoreState = true
+                    val targetPage = when (targetRoute) {
+                        "habits" -> 0
+                        "health" -> 1
+                        "dashboard" -> 2
+                        "app_rules" -> 3
+                        "profile" -> 4
+                        else -> 2
+                    }
+                    if (pagerState.currentPage != targetPage) {
+                        coroutineScope.launch {
+                            pagerState.animateScrollToPage(targetPage)
                         }
                     }
                 }
             )
         }
     ) { paddingValues ->
-        NavHost(
-            navController = innerNavController,
-            startDestination = "dashboard",
-            modifier = Modifier.padding(paddingValues)
-        ) {
-            composable("dashboard") {
-                DashboardScreen(
-                    onNavigateToProfile = { innerNavController.navigate("profile") }
-                )
-            }
-            composable("habits") {
-                HabitsScreen(
+        androidx.compose.foundation.pager.HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.padding(paddingValues),
+            beyondBoundsPageCount = 1
+        ) { page ->
+            when (page) {
+                0 -> HabitsScreen(
                     onNavigateToForm = onNavigateToForm,
                     onNavigateToTracking = onNavigateToTracking
                 )
-            }
-            composable("app_rules") {
-                AppRulesScreen(
+                1 -> {
+                    val viewModel: com.moises.vitalodyssey.presentation.viewmodels.HealthViewModel = koinViewModel()
+                    HealthScreen(viewModel = viewModel)
+                }
+                2 -> DashboardScreen(
+                    onNavigateToProfile = { 
+                        coroutineScope.launch { pagerState.animateScrollToPage(4) } 
+                    },
+                    onNavigateToHabits = { 
+                        coroutineScope.launch { pagerState.animateScrollToPage(0) } 
+                    }
+                )
+                3 -> AppRulesScreen(
+                    isActive = (pagerState.currentPage == 3),
                     onNavigateToForm = onNavigateToAppRuleForm
                 )
-            }
-            composable("health") {
-                val viewModel: com.moises.vitalodyssey.presentation.viewmodels.HealthViewModel = koinViewModel()
-                HealthScreen(viewModel = viewModel)
-            }
-            composable("profile") {
-                ProfileScreen(
+                4 -> ProfileScreen(
                     onNavigateToLogin = onLogout
                 )
             }

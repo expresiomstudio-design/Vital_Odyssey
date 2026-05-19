@@ -21,6 +21,7 @@ import java.util.Locale
 @Composable
 fun HabitLogDialog(
     habit: Habit,
+    log: com.moises.vitalodyssey.domain.model.HabitLog? = null,
     dateStr: String? = null,
     onDismiss: () -> Unit,
     onConfirm: (HabitState, Float?) -> Unit
@@ -36,18 +37,28 @@ fun HabitLogDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            Column {
-                Text(habit.name, fontWeight = FontWeight.Bold)
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = habit.name, 
+                    fontWeight = FontWeight.Bold,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
                 Text(
                     text = displayDate,
                     style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
                 )
             }
         },
         text = {
             HabitLoggingContent(
                 habit = habit,
+                initialState = log?.state ?: HabitState.UNRECORDED,
+                initialValue = log?.measuredValue,
                 onRecord = onConfirm
             )
         },
@@ -63,9 +74,17 @@ fun HabitLogDialog(
 @Composable
 fun HabitLoggingContent(
     habit: Habit,
+    initialState: HabitState = HabitState.UNRECORDED,
+    initialValue: Float? = null,
     onRecord: (HabitState, Float?) -> Unit
 ) {
-    var textValue by remember { mutableStateOf("") }
+    var textValue by remember { 
+        mutableStateOf(
+            if (initialValue != null && initialValue > 0f) {
+                if (initialValue % 1 == 0f) initialValue.toInt().toString() else initialValue.toString()
+            } else ""
+        ) 
+    }
     val roleColor = if (habit.role == HabitRole.OFFENSIVE) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary
 
     Column(
@@ -76,8 +95,8 @@ fun HabitLoggingContent(
         // El anillo de progreso central
         HabitProgressRing(
             score = habit.score,
-            state = HabitState.UNRECORDED,
-            measuredValue = null,
+            state = initialState,
+            measuredValue = initialValue,
             isBoolean = habit.type == HabitType.BOOLEAN,
             primaryColor = roleColor,
             modifier = Modifier.size(80.dp),
@@ -124,6 +143,7 @@ fun HabitLoggingContent(
                         label = "Completado",
                         icon = Lucide.CircleCheck,
                         color = MaterialTheme.colorScheme.primary,
+                        isSelected = initialState == HabitState.COMPLETED,
                         onClick = { onRecord(HabitState.COMPLETED, null) },
                         modifier = Modifier.weight(1f)
                     )
@@ -132,6 +152,7 @@ fun HabitLoggingContent(
                     label = "Saltado",
                     icon = Lucide.CircleMinus,
                     color = MaterialTheme.colorScheme.secondary,
+                    isSelected = initialState == HabitState.SKIPPED,
                     onClick = { onRecord(HabitState.SKIPPED, null) },
                     modifier = if (habit.type == HabitType.BOOLEAN) Modifier.weight(1f) else Modifier.fillMaxWidth()
                 )
@@ -141,6 +162,7 @@ fun HabitLoggingContent(
                     label = "No Realizado",
                     icon = Lucide.CircleX,
                     color = MaterialTheme.colorScheme.error,
+                    isSelected = initialState == HabitState.MISSED,
                     onClick = { onRecord(HabitState.MISSED, null) },
                     modifier = Modifier.weight(1f)
                 )
@@ -148,6 +170,7 @@ fun HabitLoggingContent(
                     label = "Borrar",
                     icon = Lucide.Eraser,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    isSelected = initialState == HabitState.UNRECORDED,
                     onClick = { onRecord(HabitState.UNRECORDED, null) },
                     modifier = Modifier.weight(1f)
                 )

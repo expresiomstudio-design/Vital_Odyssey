@@ -6,7 +6,7 @@ import androidx.room.TypeConverters
 import com.moises.vitalodyssey.domain.model.Habit
 import com.moises.vitalodyssey.domain.model.HabitLog
 
-@Database(entities = [Habit::class, HabitLog::class, UserEntity::class, AppRuleEntity::class, BossEntity::class], version = 9, exportSchema = false)
+@Database(entities = [Habit::class, HabitLog::class, UserEntity::class, AppRuleEntity::class, BossEntity::class], version = 10, exportSchema = false)
 @TypeConverters(HabitTypeConverters::class) // ¡Importante para que no falle al compilar!
 abstract class AppDatabase : RoomDatabase() {
 
@@ -56,6 +56,12 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL("ALTER TABLE habits_table ADD COLUMN lastUpdated INTEGER NOT NULL DEFAULT $currentTime")
                 db.execSQL("ALTER TABLE app_rules_table ADD COLUMN lastUpdated INTEGER NOT NULL DEFAULT $currentTime")
                 db.execSQL("ALTER TABLE bosses ADD COLUMN lastUpdated INTEGER NOT NULL DEFAULT $currentTime")
+            }
+        }
+        val MIGRATION_9_10 = object : androidx.room.migration.Migration(9, 10) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE user_profile ADD COLUMN stepGoal INTEGER NOT NULL DEFAULT 8000")
+                db.execSQL("ALTER TABLE user_profile ADD COLUMN sleepGoal REAL NOT NULL DEFAULT 7.5")
             }
         }
     }

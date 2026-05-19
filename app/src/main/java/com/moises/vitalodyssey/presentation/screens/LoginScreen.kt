@@ -35,6 +35,8 @@ import androidx.credentials.exceptions.GetCredentialException
 import com.composables.icons.lucide.Lock
 import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.Mail
+import com.composables.icons.lucide.Eye
+import com.composables.icons.lucide.EyeOff
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.android.libraries.identity.googleid.GoogleIdTokenParsingException
@@ -120,6 +122,7 @@ fun LoginContent(
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var passwordVisible by remember { mutableStateOf(false) }
 
     Box(
         modifier = androidx.compose.ui.Modifier.fillMaxSize()
@@ -222,7 +225,19 @@ fun LoginContent(
                         tint = Color.White
                     ) 
                 },
-                visualTransformation = PasswordVisualTransformation(),
+                trailingIcon = {
+                    val image = if (passwordVisible) Lucide.EyeOff else Lucide.Eye
+                    val description = if (passwordVisible) "Ocultar contraseña" else "Mostrar contraseña"
+                    IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                        Icon(
+                            painter = rememberVectorPainter(image),
+                            contentDescription = description,
+                            modifier = Modifier.size(20.dp),
+                            tint = Color.White.copy(alpha = 0.7f)
+                        )
+                    }
+                },
+                visualTransformation = if (passwordVisible) androidx.compose.ui.text.input.VisualTransformation.None else PasswordVisualTransformation(),
                 singleLine = true,
                 textStyle = MaterialTheme.typography.bodyLarge.copy(color = Color.White),
                 colors = TextFieldDefaults.colors(

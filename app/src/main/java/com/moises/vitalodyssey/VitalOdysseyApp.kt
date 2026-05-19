@@ -1,18 +1,19 @@
 package com.moises.vitalodyssey
 
 import android.app.Application
-import androidx.work.Constraints
-import androidx.work.ExistingPeriodicWorkPolicy
-import androidx.work.PeriodicWorkRequestBuilder
-import androidx.work.WorkManager
 import com.moises.vitalodyssey.di.appModule
-import com.moises.vitalodyssey.worker.DailyCombatWorker
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.context.startKoin
-import java.util.Calendar
-import java.util.concurrent.TimeUnit
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
-class VitalOdysseyApp : Application() {
+class VitalOdysseyApp : Application(), KoinComponent {
+
+    private val databaseManager: com.moises.vitalodyssey.data.local.DatabaseManager by inject()
+
     override fun onCreate() {
         super.onCreate()
 
@@ -25,31 +26,15 @@ class VitalOdysseyApp : Application() {
     }
 
     private fun setupDailyCombatWorker() {
-        // Calcular el tiempo hasta la próxima medianoche
-        val currentDate = Calendar.getInstance()
-        val dueDate = Calendar.getInstance().apply {
-            set(Calendar.HOUR_OF_DAY, 23)
-            set(Calendar.MINUTE, 59)
-            set(Calendar.SECOND, 0)
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val db = databaseManager.getDatabaseSync()
+                val user = db.userDao().getFirstUserProfileOnce()
+                val cutoff = user?.cutoffTime ?: "00:00"
+                com.moises.vitalodyssey.data.remote.UserRepositoryImpl.scheduleDailyCombatWorker(this@VitalOdysseyApp, cutoff)
+            } catch (e: Exception) {
+                android.util.Log.e("VitalOdysseyApp", "Error setting up DailyCombatWorker: ${e.message}", e)
+            }
         }
-        if (dueDate.before(currentDate)) {
-            dueDate.add(Calendar.HOUR_OF_DAY, 24)
-        }
-        val timeDiff = dueDate.timeInMillis - currentDate.timeInMillis
-
-        val constraints = Constraints.Builder()
-            .setRequiresBatteryNotLow(true)
-            .build()
-
-        val dailyWorkRequest = PeriodicWorkRequestBuilder<DailyCombatWorker>(24, TimeUnit.HOURS)
-            .setInitialDelay(timeDiff, TimeUnit.MILLISECONDS)
-            .setConstraints(constraints)
-            .build()
-
-        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
-            "DailyCombatWorker",
-            ExistingPeriodicWorkPolicy.KEEP,
-            dailyWorkRequest
-        )
     }
 }

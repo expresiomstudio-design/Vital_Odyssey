@@ -45,7 +45,8 @@ import org.koin.androidx.compose.koinViewModel
 @Composable
 fun DashboardScreen(
     viewModel: DashboardViewModel = koinViewModel(),
-    onNavigateToProfile: () -> Unit = {}
+    onNavigateToProfile: () -> Unit = {},
+    onNavigateToHabits: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -53,7 +54,9 @@ fun DashboardScreen(
         uiState = uiState,
         onAttackClicked = { viewModel.onAttackClicked() },
         onDismissBattleReport = { viewModel.dismissBattleReport() },
-        onNavigateToProfile = onNavigateToProfile
+        onNavigateToProfile = onNavigateToProfile,
+        onNavigateToHabits = onNavigateToHabits,
+        onDismissNoOffensiveHabitsDialog = { viewModel.dismissNoOffensiveHabitsDialog() }
     )
 }
 
@@ -62,7 +65,9 @@ fun DashboardScreenContent(
     uiState: DashboardUiState,
     onAttackClicked: () -> Unit,
     onDismissBattleReport: () -> Unit,
-    onNavigateToProfile: () -> Unit
+    onNavigateToProfile: () -> Unit,
+    onNavigateToHabits: () -> Unit,
+    onDismissNoOffensiveHabitsDialog: () -> Unit
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
@@ -86,7 +91,7 @@ fun DashboardScreenContent(
 
                 // ── Botón de ataque ─────────────────────────────────────────
                 AttackFab(
-                    isEnabled = uiState.currentStamina >= 33,
+                    isEnabled = uiState.developerMode || uiState.currentStamina >= 33,
                     onAttack = onAttackClicked,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -100,6 +105,63 @@ fun DashboardScreenContent(
                 result = uiState.lastBattleResult,
                 onDismiss = onDismissBattleReport
             )
+        }
+
+        if (uiState.showNoOffensiveHabitsDialog) {
+            androidx.compose.ui.window.Dialog(onDismissRequest = onDismissNoOffensiveHabitsDialog) {
+                Surface(
+                    shape = RoundedCornerShape(24.dp),
+                    color = MaterialTheme.colorScheme.surface,
+                    tonalElevation = 8.dp
+                ) {
+                    Column(
+                        modifier = Modifier.padding(24.dp).fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Warning,
+                            contentDescription = "Alerta",
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(48.dp)
+                        )
+
+                        Text(
+                            text = "HÁBITO OFENSIVO REQUERIDO",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.error
+                        )
+
+                        Text(
+                            text = "Debes tener al menos un hábito ofensivo activo para poder atacar al jefe. El éxito en el combate depende de tu constancia diaria.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            textAlign = TextAlign.Center,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Button(
+                            onClick = {
+                                onDismissNoOffensiveHabitsDialog()
+                                onNavigateToHabits()
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("IR A HÁBITOS", fontWeight = FontWeight.Bold)
+                        }
+
+                        TextButton(
+                            onClick = onDismissNoOffensiveHabitsDialog,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("CERRAR", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -515,7 +577,9 @@ fun DashboardScreenPreview() {
             ),
             onAttackClicked = {},
             onDismissBattleReport = {},
-            onNavigateToProfile = {}
+            onNavigateToProfile = {},
+            onNavigateToHabits = {},
+            onDismissNoOffensiveHabitsDialog = {}
         )
     }
 }

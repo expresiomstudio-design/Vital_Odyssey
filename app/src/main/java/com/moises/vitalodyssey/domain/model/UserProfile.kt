@@ -17,5 +17,7 @@ data class UserProfile(
     val difficulty: String,
     val hasCompletedOnboarding: Boolean,
     val startOfWeek: String = "MONDAY",
+    val stepGoal: Int = 8000,
+    val sleepGoal: Float = 7.5f,
     val lastUpdated: Long = System.currentTimeMillis()
 )

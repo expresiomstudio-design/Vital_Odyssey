@@ -52,8 +52,9 @@ class CalculateBattleTurnUseCase(
         }
         val totalDamageMultiplier = attackMultiplier + (defenseMultiplier - 1.0f) + presenceBonus
 
-        // 3. Calcular Daño al Jefe
-        val attackCompletionRate = if (offensiveHabitsTotal > 0) offensiveHabitsCompleted.toFloat() / offensiveHabitsTotal else 0f
+        // 3. Calcular Daño al Jefe (piso mínimo: siempre haces al menos 15% de daño base)
+        val rawAttackRate = if (offensiveHabitsTotal > 0) offensiveHabitsCompleted.toFloat() / offensiveHabitsTotal else 1f
+        val attackCompletionRate = rawAttackRate.coerceAtLeast(GameConstants.MIN_ATTACK_COMPLETION_RATE)
         val baseDamage = playerStats.baseAttack * attackCompletionRate
         val damageDealt = (baseDamage * totalDamageMultiplier).toInt()
 
@@ -61,15 +62,17 @@ class CalculateBattleTurnUseCase(
         val effectiveDefense = (playerStats.baseDefense * defenseMultiplier).toInt()
         val damageReceived = (bossAttack - effectiveDefense).coerceAtLeast(0)
 
-        // 5. Calcular Curación
-        val defenseCompletionRate = if (defensiveHabitsTotal > 0) defensiveHabitsCompleted.toFloat() / defensiveHabitsTotal else 0f
+        // 5. Calcular Curación (piso mínimo: siempre curas al menos 10%)
+        val rawDefenseRate = if (defensiveHabitsTotal > 0) defensiveHabitsCompleted.toFloat() / defensiveHabitsTotal else 1f
+        val defenseCompletionRate = rawDefenseRate.coerceAtLeast(GameConstants.MIN_DEFENSE_COMPLETION_RATE)
         val maxHealingPossible = playerStats.maxHp * GameConstants.MAX_DAILY_HEAL_RATIO
         val hpHealed = (maxHealingPossible * defenseCompletionRate).toInt()
 
-        // 6. Calcular Experiencia
+        // 6. Calcular Experiencia (piso mínimo: siempre ganas al menos 10% de XP por hábitos)
         val totalHabits = offensiveHabitsTotal + defensiveHabitsTotal
         val completedHabits = offensiveHabitsCompleted + defensiveHabitsCompleted
-        val habitCompletionRate = if (totalHabits > 0) completedHabits.toFloat() / totalHabits else 0f
+        val rawHabitRate = if (totalHabits > 0) completedHabits.toFloat() / totalHabits else 1f
+        val habitCompletionRate = rawHabitRate.coerceAtLeast(GameConstants.MIN_XP_COMPLETION_RATE)
 
         var xpEarned = (habitCompletionRate * GameConstants.MAX_HABITS_XP).toInt()
         

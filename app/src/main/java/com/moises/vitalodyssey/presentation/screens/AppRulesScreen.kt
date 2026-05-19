@@ -35,12 +35,14 @@ import org.koin.androidx.compose.koinViewModel
 @Composable
 fun AppRulesScreen(
     viewModel: AppRulesViewModel = koinViewModel(),
+    isActive: Boolean = false,
     onNavigateToForm: (Int) -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = androidx.compose.ui.platform.LocalContext.current
     val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
     var showPermissionDialog by remember { mutableStateOf(false) }
+    var hasAutoShown by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
     
     DisposableEffect(lifecycleOwner) {
         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
@@ -51,6 +53,21 @@ fun AppRulesScreen(
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    LaunchedEffect(isActive, uiState.hasPermission) {
+        if (isActive && !uiState.hasPermission && !hasAutoShown) {
+            showPermissionDialog = true
+            hasAutoShown = true
+        }
+    }
+
+    val handleAddClick = {
+        if (!uiState.hasPermission) {
+            showPermissionDialog = true
+        } else {
+            onNavigateToForm(0)
+        }
     }
 
     Box(
@@ -68,7 +85,7 @@ fun AppRulesScreen(
             item {
                 SectionHeader(
                     title = "Mis Reglas",
-                    onAddClick = { onNavigateToForm(0) }
+                    onAddClick = handleAddClick
                 )
             }
 
@@ -104,7 +121,7 @@ fun AppRulesScreen(
                 }
             } else if (uiState.rules.isEmpty()) {
                 item {
-                    EmptyRulesView(onAddClick = { onNavigateToForm(0) })
+                    EmptyRulesView(onAddClick = handleAddClick)
                 }
             } else {
                 items(uiState.rules, key = { it.rule.id }) { ruleWithUsage ->
@@ -123,7 +140,7 @@ fun AppRulesScreen(
     if (showPermissionDialog) {
         com.moises.vitalodyssey.presentation.components.PermissionExplanationDialog(
             title = "Acceso de Uso Requerido",
-            description = "Para calcular tu Foco Arcano y recargar estamina, necesitamos vigilar a los ladrones de tiempo.",
+            description = "Si no activas el seguimiento, tus reglas no van a contabilizar el tiempo de uso de tus apps.",
             iconRes = com.moises.vitalodyssey.R.drawable.ic_stat_experience,
             steps = listOf(
                 "Pulsa el botón de abajo para ir a Ajustes.",

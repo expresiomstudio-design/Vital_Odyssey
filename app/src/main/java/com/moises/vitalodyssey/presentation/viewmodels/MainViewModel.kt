@@ -28,7 +28,7 @@ class MainViewModel(
         return try {
             userRepository.fetchUserFromCloud()
             val profile = userRepository.getUserProfileOnce()
-            if (profile?.hasCompletedOnboarding == true) "dashboard" else "onboarding"
+            if (profile?.hasCompletedOnboarding == true) "main_container" else "onboarding"
         } catch (e: Exception) {
             "onboarding"
         }
@@ -53,7 +53,7 @@ class MainViewModel(
                     val profile = userRepository.getUserProfileOnce()
                     
                     if (profile != null && profile.hasCompletedOnboarding) {
-                        _startDestination.value = "dashboard"
+                        _startDestination.value = "main_container"
                     } else {
                         _startDestination.value = "onboarding"
                     }

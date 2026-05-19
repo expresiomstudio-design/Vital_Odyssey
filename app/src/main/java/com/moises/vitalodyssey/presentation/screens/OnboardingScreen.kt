@@ -49,7 +49,8 @@ fun OnboardingScreen(
         onTypeSelected = viewModel::selectBodyType,
         onClassSelected = viewModel::selectPlayerClass,
         onStart = viewModel::completeOnboarding,
-        onFinish = onFinish
+        onFinish = onFinish,
+        onError = viewModel::triggerError
     )
 }
 
@@ -60,9 +61,17 @@ fun OnboardingContent(
     onTypeSelected: (BodyType) -> Unit,
     onClassSelected: (PlayerClass) -> Unit,
     onStart: () -> Unit,
-    onFinish: () -> Unit
+    onFinish: () -> Unit,
+    onError: (String) -> Unit
 ) {
     var currentStep by remember { mutableIntStateOf(1) }
+
+    LaunchedEffect(uiState.errorMessage) {
+        uiState.errorMessage?.let {
+            // Optional: you can show a Snackbar or Toast here if preferred. 
+            // The text is also shown below the buttons.
+        }
+    }
 
     LaunchedEffect(uiState.isCompleted) {
         if (uiState.isCompleted) {
@@ -112,13 +121,23 @@ fun OnboardingContent(
                         onNameChange = onNameChange,
                         selectedType = uiState.selectedBodyType,
                         onTypeSelected = onTypeSelected,
-                        onContinue = { currentStep = 2 }
+                        errorMessage = uiState.errorMessage,
+                        onContinue = { 
+                            if (uiState.name.isBlank()) {
+                                onError("Debes escribir un nombre para tu héroe.")
+                            } else if (uiState.selectedBodyType == null) {
+                                onError("Debes seleccionar un tipo de cuerpo.")
+                            } else {
+                                currentStep = 2 
+                            }
+                        }
                     )
                 } else {
                     StepTwoContent(
                         selectedClass = uiState.selectedPlayerClass,
                         bodyType = uiState.selectedBodyType,
                         isLoading = uiState.isLoading,
+                        errorMessage = uiState.errorMessage,
                         onClassSelected = onClassSelected,
                         onStart = onStart
                     )
@@ -134,6 +153,7 @@ fun StepOneContent(
     onNameChange: (String) -> Unit,
     selectedType: BodyType?,
     onTypeSelected: (BodyType) -> Unit,
+    errorMessage: String?,
     onContinue: () -> Unit
 ) {
     Column(
@@ -180,8 +200,10 @@ fun StepOneContent(
                     unfocusedContainerColor = Color.Transparent,
                     disabledContainerColor = Color.Transparent,
                     focusedIndicatorColor = MaterialTheme.colorScheme.primaryContainer,
-                    unfocusedIndicatorColor = Color.Transparent
-                )
+                    unfocusedIndicatorColor = Color.Transparent,
+                    errorContainerColor = Color.Transparent
+                ),
+                isError = name.isBlank() && errorMessage?.contains("nombre") == true
             )
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -231,27 +253,38 @@ fun StepOneContent(
         }
 
         Box(modifier = Modifier.padding(24.dp)) {
-            val isEnabled = selectedType != null && name.isNotBlank()
-            Button(
-                onClick = onContinue,
-                enabled = isEnabled,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(72.dp)
-                    .alpha(if (isEnabled) 1f else 0.5f),
-                shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    disabledContainerColor = MaterialTheme.colorScheme.primaryContainer
-                )
-            ) {
-                Text(
-                    "CONTINUAR", 
-                    style = MaterialTheme.typography.titleLarge, 
-                    fontWeight = FontWeight.ExtraBold, 
-                    letterSpacing = 2.sp,
-                    color = Color.Black
-                )
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                errorMessage?.let { error ->
+                    Text(
+                        text = error,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(bottom = 8.dp).background(MaterialTheme.colorScheme.surface.copy(alpha=0.8f), RoundedCornerShape(4.dp)).padding(4.dp)
+                    )
+                }
+                val isEnabled = selectedType != null && name.isNotBlank()
+                Button(
+                    onClick = onContinue,
+                    // We don't disable the button so they can click and see the error message
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(72.dp)
+                        .alpha(if (isEnabled) 1f else 0.8f),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        disabledContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha=0.5f)
+                    )
+                ) {
+                    Text(
+                        "CONTINUAR", 
+                        style = MaterialTheme.typography.titleLarge, 
+                        fontWeight = FontWeight.ExtraBold, 
+                        letterSpacing = 2.sp,
+                        color = Color.Black
+                    )
+                }
             }
         }
     }
@@ -295,6 +328,7 @@ fun StepTwoContent(
     selectedClass: PlayerClass?,
     bodyType: BodyType?,
     isLoading: Boolean,
+    errorMessage: String?,
     onClassSelected: (PlayerClass) -> Unit,
     onStart: () -> Unit
 ) {
@@ -346,41 +380,57 @@ fun StepTwoContent(
         }
 
         Box(modifier = Modifier.padding(24.dp)) {
-            val isEnabled = selectedClass != null && !isLoading
-            Button(
-                onClick = onStart,
-                enabled = isEnabled,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(72.dp)
-                    .alpha(if (isEnabled) 1f else 0.5f),
-                shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    disabledContainerColor = MaterialTheme.colorScheme.primaryContainer
-                )
-            ) {
-                if (isLoading) {
-                    CircularProgressIndicator(
-                        color = Color.Black,
-                        modifier = Modifier.size(24.dp),
-                        strokeWidth = 2.dp
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                errorMessage?.let { error ->
+                    Text(
+                        text = error,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(bottom = 8.dp).background(MaterialTheme.colorScheme.surface.copy(alpha=0.8f), RoundedCornerShape(4.dp)).padding(4.dp)
                     )
-                } else {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Icon(
-                            painter = rememberVectorPainter(Lucide.Sword), 
-                            contentDescription = null,
-                            tint = Color.Black,
-                            modifier = Modifier.size(28.dp)
-                        )
-                        Text(
-                            "EMPEZAR ODISEA",
-                            style = MaterialTheme.typography.titleLarge,
+                }
+                
+                val isEnabled = selectedClass != null && !isLoading
+                Button(
+                    onClick = {
+                        if (selectedClass == null) {
+                            // Si quieres mostrar un mensaje local, el onStart también lo valida.
+                        }
+                        onStart()
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(72.dp)
+                        .alpha(if (isEnabled) 1f else 0.8f),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        disabledContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha=0.5f)
+                    )
+                ) {
+                    if (isLoading) {
+                        CircularProgressIndicator(
                             color = Color.Black,
-                            letterSpacing = 2.sp,
-                            fontWeight = FontWeight.ExtraBold
+                            modifier = Modifier.size(24.dp),
+                            strokeWidth = 2.dp
                         )
+                    } else {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Icon(
+                                painter = rememberVectorPainter(Lucide.Sword), 
+                                contentDescription = null,
+                                tint = Color.Black,
+                                modifier = Modifier.size(28.dp)
+                            )
+                            Text(
+                                "EMPEZAR ODISEA",
+                                style = MaterialTheme.typography.titleLarge,
+                                color = Color.Black,
+                                letterSpacing = 2.sp,
+                                fontWeight = FontWeight.ExtraBold
+                            )
+                        }
                     }
                 }
             }
@@ -483,7 +533,8 @@ fun OnboardingScreenPreview() {
             onTypeSelected = {},
             onClassSelected = {},
             onStart = {},
-            onFinish = {}
+            onFinish = {},
+            onError = {}
         )
     }
 }

@@ -24,6 +24,8 @@ data class UserEntity(
     val difficulty: String = "NORMAL",
     val hasCompletedOnboarding: Boolean = false,
     val startOfWeek: String = "MONDAY",
+    val stepGoal: Int = 8000,
+    val sleepGoal: Float = 7.5f,
     val lastUpdated: Long = System.currentTimeMillis()
 ) {
     fun toDomain() = UserProfile(
@@ -43,6 +45,8 @@ data class UserEntity(
         difficulty = difficulty,
         hasCompletedOnboarding = hasCompletedOnboarding,
         startOfWeek = startOfWeek,
+        stepGoal = stepGoal,
+        sleepGoal = sleepGoal,
         lastUpdated = lastUpdated
     )
 
@@ -64,6 +68,8 @@ data class UserEntity(
             difficulty = profile.difficulty,
             hasCompletedOnboarding = profile.hasCompletedOnboarding,
             startOfWeek = profile.startOfWeek,
+            stepGoal = profile.stepGoal,
+            sleepGoal = profile.sleepGoal,
             lastUpdated = profile.lastUpdated
         )
     }

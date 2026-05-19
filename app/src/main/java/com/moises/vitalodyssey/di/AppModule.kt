@@ -55,7 +55,7 @@ val appModule = module {
     factory { CalculateBattleTurnUseCase(get<CalculateDefenseMultiplierUseCase>()) }
     factory { CalculateBossStatsUseCase() }
     factory { CheckAndSeedInitialBossUseCase(get(), get()) }
-    single { ProcessBattleResultUseCase(get(), get()) }
+    single { ProcessBattleResultUseCase(get(), get(), get()) }
     factory { CalculateHabitScoreUseCase() }
     factory { EvaluateHabitStateUseCase() }
     factory { EvaluateStrictStateUseCase() }
@@ -86,7 +86,8 @@ val appModule = module {
             calculateDefenseMultiplierUseCase = get(),
             checkAndSeedInitialBossUseCase = get(),
             bossDao = get(),
-            habitDao = get()
+            habitDao = get(),
+            userPrefsManager = get()
         )
     }
     
@@ -94,7 +95,8 @@ val appModule = module {
         ProfileViewModel(
             userRepository = get(),
             calculateStats = get(),
-            authRepository = get()
+            authRepository = get(),
+            userPrefsManager = get()
         )
     }
 
@@ -169,6 +171,7 @@ val appModule = module {
         HealthViewModel(
             healthRepository = get(),
             userPreferencesManager = get(),
+            userRepository = get(),
             getYesterdayHealthStats = get(),
             calculateDefenseMultiplier = get()
         )

@@ -18,7 +18,8 @@ data class OnboardingUiState(
     val selectedBodyType: BodyType? = null,
     val selectedPlayerClass: PlayerClass? = null,
     val isCompleted: Boolean = false,
-    val isLoading: Boolean = false
+    val isLoading: Boolean = false,
+    val errorMessage: String? = null
 )
 
 class OnboardingViewModel(
@@ -34,15 +35,19 @@ class OnboardingViewModel(
     }
 
     fun onNameChange(newName: String) {
-        _uiState.update { it.copy(name = newName) }
+        _uiState.update { it.copy(name = newName, errorMessage = null) }
     }
 
     fun selectBodyType(bodyType: BodyType) {
-        _uiState.update { it.copy(selectedBodyType = bodyType) }
+        _uiState.update { it.copy(selectedBodyType = bodyType, errorMessage = null) }
     }
 
     fun selectPlayerClass(playerClass: PlayerClass) {
-        _uiState.update { it.copy(selectedPlayerClass = playerClass) }
+        _uiState.update { it.copy(selectedPlayerClass = playerClass, errorMessage = null) }
+    }
+
+    fun triggerError(message: String) {
+        _uiState.update { it.copy(errorMessage = message) }
     }
 
     fun completeOnboarding() {
@@ -50,39 +55,46 @@ class OnboardingViewModel(
         val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return
         val email = FirebaseAuth.getInstance().currentUser?.email ?: ""
 
-        if (currentState.name.isNotBlank() && 
-            currentState.selectedBodyType != null && 
-            currentState.selectedPlayerClass != null) {
-            
-            _uiState.update { it.copy(isLoading = true) }
+        if (currentState.name.isBlank()) {
+            triggerError("Debes escribir un nombre para tu héroe.")
+            return
+        }
+        if (currentState.selectedBodyType == null) {
+            triggerError("Debes seleccionar un tipo de cuerpo.")
+            return
+        }
+        if (currentState.selectedPlayerClass == null) {
+            triggerError("Debes elegir una clase para continuar.")
+            return
+        }
 
-            val initialProfile = UserProfile(
-                uid = uid,
-                name = currentState.name,
-                email = email,
-                bodyType = currentState.selectedBodyType,
-                playerClass = currentState.selectedPlayerClass,
-                level = 1,
-                currentXp = 0,
-                currentHp = 1000,
-                currentStamina = 100,
-                presenceStreak = 0,
-                highestStreak = 0,
-                bossesDefeated = emptyList(),
-                cutoffTime = "00:00",
-                difficulty = "NORMAL",
-                hasCompletedOnboarding = true
-            )
+        _uiState.update { it.copy(isLoading = true, errorMessage = null) }
 
-            viewModelScope.launch {
-                try {
-                    userRepository.updateStats(initialProfile)
-                    userRepository.syncUserToCloud()
-                    _uiState.update { it.copy(isCompleted = true, isLoading = false) }
-                } catch (e: Exception) {
-                    _uiState.update { it.copy(isLoading = false) }
-                    // Handle error
-                }
+        val initialProfile = UserProfile(
+            uid = uid,
+            name = currentState.name,
+            email = email,
+            bodyType = currentState.selectedBodyType,
+            playerClass = currentState.selectedPlayerClass,
+            level = 1,
+            currentXp = 0,
+            currentHp = 1000,
+            currentStamina = 100,
+            presenceStreak = 0,
+            highestStreak = 0,
+            bossesDefeated = emptyList(),
+            cutoffTime = "00:00",
+            difficulty = "NORMAL",
+            hasCompletedOnboarding = true
+        )
+
+        viewModelScope.launch {
+            try {
+                userRepository.updateStats(initialProfile)
+                userRepository.syncUserToCloud()
+                _uiState.update { it.copy(isCompleted = true, isLoading = false) }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isLoading = false, errorMessage = "Error al guardar el perfil.") }
             }
         }
     }

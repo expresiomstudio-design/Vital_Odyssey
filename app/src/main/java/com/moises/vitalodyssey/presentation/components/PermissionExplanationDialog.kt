@@ -49,7 +49,7 @@ fun PermissionExplanationDialog(
                     )
                 }
                 Spacer(modifier = Modifier.height(16.dp))
-                Text(title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                Text(title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
                 
@@ -74,8 +74,8 @@ fun PermissionExplanationDialog(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                Button(onClick = onConfirm, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = MaterialTheme.colorScheme.onPrimaryContainer)) {
-                    Text("ENTENDIDO, ABRIR AJUSTES", fontWeight = FontWeight.Bold)
+                Button(onClick = onConfirm, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = androidx.compose.ui.graphics.Color.Black)) {
+                    Text("ENTENDIDO, ABRIR AJUSTES", fontWeight = FontWeight.Bold, color = androidx.compose.ui.graphics.Color.Black)
                 }
                 TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
                     Text("AHORA NO", color = MaterialTheme.colorScheme.onSurfaceVariant)

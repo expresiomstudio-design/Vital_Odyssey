@@ -62,6 +62,12 @@ fun HealthScreen(viewModel: HealthViewModel = koinViewModel()) {
         viewModel.onPermissionResult(granted.containsAll(requiredPermissions))
     }
 
+    LaunchedEffect(uiState.hasConfiguredHealthGoals) {
+        if (!uiState.hasConfiguredHealthGoals) {
+            viewModel.toggleHealthGoalsDialog(true)
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -78,13 +84,24 @@ fun HealthScreen(viewModel: HealthViewModel = koinViewModel()) {
             item {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
                         text = "Salud",
                         style = MaterialTheme.typography.displayLarge,
                         color = MaterialTheme.colorScheme.primaryContainer
                     )
+                    IconButton(
+                        onClick = { viewModel.toggleHealthGoalsDialog(true) },
+                        modifier = Modifier.size(52.dp)
+                    ) {
+                        androidx.compose.foundation.Image(
+                            painter = painterResource(id = com.moises.vitalodyssey.R.drawable.ic_screen_config),
+                            contentDescription = "Configurar Metas",
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
                 }
             }
 
@@ -241,6 +258,21 @@ fun HealthScreen(viewModel: HealthViewModel = koinViewModel()) {
             onConfirm = { steps, sleep -> viewModel.submitManualReport(steps, sleep) }
         )
     }
+
+    if (uiState.showHealthGoalsDialog) {
+        HealthGoalsDialog(
+            currentStepGoal = uiState.currentStepGoal,
+            currentSleepGoal = uiState.currentSleepGoal,
+            onDismiss = { 
+                if (uiState.hasConfiguredHealthGoals) {
+                    viewModel.toggleHealthGoalsDialog(false)
+                } 
+                // If not configured, we force them to configure or stay on screen
+            },
+            onConfirm = { steps, sleep -> viewModel.submitHealthGoals(steps, sleep) },
+            canDismiss = uiState.hasConfiguredHealthGoals
+        )
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -330,8 +362,7 @@ private fun ShieldStatusCard(multiplier: Float) {
                 Text(
                     text = subtitle,
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
@@ -669,6 +700,131 @@ private fun ManualReportDialog(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("CANCELAR", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun HealthGoalsDialog(
+    currentStepGoal: Int,
+    currentSleepGoal: Float,
+    onDismiss: () -> Unit,
+    onConfirm: (steps: Int, sleep: Float) -> Unit,
+    canDismiss: Boolean
+) {
+    var stepsInput by remember { mutableStateOf(currentStepGoal.toString()) }
+    var sleepInput by remember { mutableStateOf(currentSleepGoal.toString()) }
+    val stepsError = stepsInput.isNotBlank() && stepsInput.toIntOrNull() == null
+    val sleepError = sleepInput.isNotBlank() && sleepInput.toFloatOrNull() == null
+
+    BasicAlertDialog(
+        onDismissRequest = { if (canDismiss) onDismiss() },
+        properties = androidx.compose.ui.window.DialogProperties(
+            dismissOnBackPress = canDismiss,
+            dismissOnClickOutside = canDismiss
+        )
+    ) {
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(24.dp),
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 6.dp
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Box(
+                    modifier = Modifier
+                        .size(56.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f))
+                        .align(Alignment.CenterHorizontally),
+                    contentAlignment = Alignment.Center
+                ) {
+                    androidx.compose.foundation.Image(
+                        painter = painterResource(id = com.moises.vitalodyssey.R.drawable.ic_screen_health),
+                        contentDescription = null,
+                        modifier = Modifier.size(48.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text(
+                    "Metas de Salud",
+                    modifier = Modifier.fillMaxWidth(),
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+
+                Text(
+                    "Define tus objetivos diarios para mantener tu escudo fuerte.",
+                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                OutlinedTextField(
+                    value = stepsInput,
+                    onValueChange = { stepsInput = it.filter { c -> c.isDigit() } },
+                    label = { Text("Meta de pasos diarios") },
+                    leadingIcon = { Icon(Lucide.Footprints, null, modifier = Modifier.size(18.dp)) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    isError = stepsError,
+                    supportingText = if (stepsError) { { Text("Introduce un número entero") } } else null,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    singleLine = true
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                OutlinedTextField(
+                    value = sleepInput,
+                    onValueChange = { sleepInput = it },
+                    label = { Text("Meta de horas de sueño") },
+                    leadingIcon = { Icon(Lucide.Moon, null, modifier = Modifier.size(18.dp)) },
+                    placeholder = { Text("ej. 7.5") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    isError = sleepError,
+                    supportingText = if (sleepError) { { Text("Introduce un número válido") } } else null,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    singleLine = true
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Button(
+                    onClick = {
+                        val steps = stepsInput.toIntOrNull() ?: 8000
+                        val sleep = sleepInput.toFloatOrNull() ?: 7.5f
+                        onConfirm(steps, sleep)
+                    },
+                    enabled = stepsInput.isNotBlank() && sleepInput.isNotBlank() && !stepsError && !sleepError,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    )
+                ) {
+                    Text("GUARDAR METAS", fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp)
+                }
+
+                if (canDismiss) {
+                    TextButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("CANCELAR", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 }
             }
         }

@@ -31,7 +31,8 @@ data class HabitFormUiState(
     val startDate: String = "",
     val isEditMode: Boolean = false,
     val isLoading: Boolean = false,
-    val isSaved: Boolean = false
+    val isSaved: Boolean = false,
+    val errorMessage: String? = null
 )
 
 class HabitFormViewModel(
@@ -70,7 +71,7 @@ class HabitFormViewModel(
         }
     }
 
-    fun onNameChange(name: String) { uiState = uiState.copy(name = name) }
+    fun onNameChange(name: String) { uiState = uiState.copy(name = name, errorMessage = null) }
     fun onNoteChange(note: String) { uiState = uiState.copy(note = note) }
     fun onRoleChange(role: HabitRole) { uiState = uiState.copy(role = role) }
     fun onTypeChange(type: HabitType) { 
@@ -78,7 +79,7 @@ class HabitFormViewModel(
             uiState = uiState.copy(type = type) 
         }
     }
-    fun onUnitChange(unit: String) { uiState = uiState.copy(unit = unit) }
+    fun onUnitChange(unit: String) { uiState = uiState.copy(unit = unit, errorMessage = null) }
     
     fun onTargetValueChange(input: String) {
         // Validación estricta
@@ -86,7 +87,7 @@ class HabitFormViewModel(
         val dotCount = sanitized.count { it == '.' }
         
         if (dotCount <= 1 && sanitized.all { it.isDigit() || it == '.' }) {
-            uiState = uiState.copy(targetValueInput = sanitized)
+            uiState = uiState.copy(targetValueInput = sanitized, errorMessage = null)
         }
     }
     
@@ -95,6 +96,23 @@ class HabitFormViewModel(
     fun onIsCumulativeChange(isCumulative: Boolean) { uiState = uiState.copy(isCumulative = isCumulative) }
 
     fun saveHabit() {
+        if (uiState.name.isBlank()) {
+            uiState = uiState.copy(errorMessage = "El nombre del hábito no puede estar vacío.")
+            return
+        }
+
+        if (uiState.type == HabitType.MEASURABLE) {
+            val target = uiState.targetValueInput.toFloatOrNull()
+            if (target == null || target <= 0f) {
+                uiState = uiState.copy(errorMessage = "La meta debe ser un número mayor a 0.")
+                return
+            }
+            if (uiState.unit.isBlank()) {
+                uiState = uiState.copy(errorMessage = "Debes especificar una unidad de medida.")
+                return
+            }
+        }
+
         viewModelScope.launch {
             val targetValue = uiState.targetValueInput.toFloatOrNull() ?: 1f
             

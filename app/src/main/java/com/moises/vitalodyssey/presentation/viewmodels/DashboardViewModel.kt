@@ -27,13 +27,15 @@ data class DashboardUiState(
     val attackMultiplier: Float = 1.0f,
     val defenseStat: Int = 10,
     val defenseMultiplier: Float = 1.0f,
-    val combatLog: String = "La noche es oscura, pero tu voluntad es de hierro.",
+    val combatLog: String = "",
     val currentBoss: BossEntity? = null,
     val lastBattleResult: BattleResult? = null,
     val showBattleReport: Boolean = false,
     val bodyType: BodyType? = null,
     val playerClass: PlayerClass? = null,
-    val playerName: String = "HÉROE"
+    val playerName: String = "HÉROE",
+    val developerMode: Boolean = false,
+    val showNoOffensiveHabitsDialog: Boolean = false
 )
 
 class DashboardViewModel(
@@ -46,13 +48,14 @@ class DashboardViewModel(
     private val calculateDefenseMultiplierUseCase: CalculateDefenseMultiplierUseCase,
     private val checkAndSeedInitialBossUseCase: CheckAndSeedInitialBossUseCase,
     private val bossDao: BossDao,
-    private val habitDao: HabitDao
+    private val habitDao: HabitDao,
+    private val userPrefsManager: com.moises.vitalodyssey.data.local.UserPreferencesManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(DashboardUiState())
     val uiState: StateFlow<DashboardUiState> = _uiState.asStateFlow()
 
-    private var currentLog = "La noche es oscura, pero tu voluntad es de hierro."
+    private var currentLog = ""
 
     init {
         viewModelScope.launch {
@@ -70,13 +73,14 @@ class DashboardViewModel(
         }
         
         viewModelScope.launch {
-            userRepository.getUserProfile().collect { profile ->
-                if (profile == null) return@collect
-                
+            combine(
+                userRepository.getUserProfile().filterNotNull(),
+                userPrefsManager.developerModeFlow
+            ) { profile, devMode ->
+                profile to devMode
+            }.collect { (profile, devMode) ->
                 val stats = calculateStats(profile.level)
                 val defMult = calculateDefenseMultiplierUseCase()
-                
-                // Mocking attackMultiplier until a UseCase is available
                 val atkMult = 1.2f
 
                 val hpRange = (stats.maxHp - stats.faintHp).toFloat()
@@ -94,16 +98,17 @@ class DashboardViewModel(
                         visualHpPercent = hpPercent,
                         xpText = "${profile.currentXp} / ${stats.xpForNextLevel} XP",
                         visualXpPercent = xpPercent,
-                        currentStamina = profile.currentStamina,
+                        currentStamina = if (devMode) 9999 else profile.currentStamina,
                         presenceStreak = profile.presenceStreak,
                         attackStat = stats.baseAttack,
                         attackMultiplier = atkMult,
                         defenseStat = stats.baseDefense,
                         defenseMultiplier = defMult,
-                        combatLog = currentLog,
+                        // combatLog se gestiona solo desde onAttackClicked — no sobreescribir aquí
                         bodyType = profile.bodyType,
                         playerClass = profile.playerClass,
-                        playerName = profile.name.ifBlank { "HÉROE" }
+                        playerName = profile.name.ifBlank { "HÉROE" },
+                        developerMode = devMode
                     )
                 }
             }
@@ -112,26 +117,71 @@ class DashboardViewModel(
 
     fun onAttackClicked() {
         viewModelScope.launch {
+            android.util.Log.d("CombatDebug", "=== onAttackClicked START ===")
             val currentState = _uiState.value
-            if (currentState.currentStamina < 33) {
+            val isDevMode = userPrefsManager.developerModeFlow.first()
+            android.util.Log.d("CombatDebug", "devMode=$isDevMode stamina=${currentState.currentStamina}")
+            
+            // 1. Verificar hábitos ofensivos primero
+            val habits = habitDao.getAllHabitsOnce()
+            val today = java.time.LocalDate.now().toString()
+            android.util.Log.d("CombatDebug", "Total habits from DB: ${habits.size}, today=$today")
+            
+            // Consultar los logs de hoy para cada hábito (fuente de verdad real de completado)
+            val habitCompletionMap = mutableMapOf<Int, Boolean>()
+            habits.forEach { h ->
+                val todayLog = habitDao.getLogForDate(h.id, today)
+                val isCompletedToday = todayLog != null && (
+                    todayLog.state == com.moises.vitalodyssey.domain.model.HabitState.COMPLETED ||
+                    todayLog.state == com.moises.vitalodyssey.domain.model.HabitState.COMPLETED_BY_PERIOD ||
+                    todayLog.state == com.moises.vitalodyssey.domain.model.HabitState.CONTRIBUTED
+                )
+                habitCompletionMap[h.id] = isCompletedToday
+                android.util.Log.d("CombatDebug", "  Habit[${h.id}]: name='${h.name}' role=${h.role} logState=${todayLog?.state} → completedToday=$isCompletedToday score=${h.score}")
+            }
+            
+            val offTotal = habits.filter { it.role == com.moises.vitalodyssey.domain.model.HabitRole.OFFENSIVE }.size
+            android.util.Log.d("CombatDebug", "Offensive habits count: $offTotal")
+            
+            if (offTotal == 0) {
+                android.util.Log.d("CombatDebug", "BLOCKED: No offensive habits → showing Dialog popup")
+                _uiState.update { it.copy(showNoOffensiveHabitsDialog = true) }
+                return@launch
+            }
+
+            // 2. Verificar estamina
+            if (!isDevMode && currentState.currentStamina < 33) {
                 currentLog = "No tienes suficiente estamina (Foco Arcano) para atacar."
+                android.util.Log.d("CombatDebug", "BLOCKED: Not enough stamina")
                 _uiState.update { it.copy(combatLog = currentLog) }
                 return@launch
             }
 
-            // 1. Descontar Estamina inmediatamente
-            val newStamina = (currentState.currentStamina - 33).coerceAtLeast(0)
+            // 3. Descontar Estamina inmediatamente
+            val newStamina = if (isDevMode) 9999 else (currentState.currentStamina - 33).coerceAtLeast(0)
 
-            // 2. Recopilar datos
-            val user = userRepository.getUserProfile().firstOrNull() ?: return@launch
-            val boss = bossDao.getCurrentBoss() ?: return@launch
+            // 4. Recopilar datos
+            val user = userRepository.getUserProfile().firstOrNull() ?: run {
+                android.util.Log.e("CombatDebug", "ABORT: user profile is null")
+                return@launch
+            }
+            val boss = bossDao.getCurrentBoss() ?: run {
+                android.util.Log.e("CombatDebug", "ABORT: boss is null")
+                return@launch
+            }
             val playerStats = calculateStats(user.level)
+            android.util.Log.d("CombatDebug", "User: level=${user.level} hp=${user.currentHp} xp=${user.currentXp}")
+            android.util.Log.d("CombatDebug", "Boss: name=${boss.name} hp=${boss.currentHp} atk=${boss.baseAttack}")
+            android.util.Log.d("CombatDebug", "PlayerStats: baseAttack=${playerStats.baseAttack} baseDef=${playerStats.baseDefense} maxHp=${playerStats.maxHp}")
             
-            // TODO: Obtener completitud real de la BD. Por ahora simulamos 80% ofensivo y 50% defensivo
-            val offTotal = 5; val offCompleted = 4
-            val defTotal = 2; val defCompleted = 1
+            // Estadísticas reales de combate usando HabitLog de hoy
+            val offCompleted = habits.filter { it.role == com.moises.vitalodyssey.domain.model.HabitRole.OFFENSIVE && habitCompletionMap[it.id] == true }.size
+            val defTotal = habits.filter { it.role == com.moises.vitalodyssey.domain.model.HabitRole.DEFENSIVE }.size
+            val defCompleted = habits.filter { it.role == com.moises.vitalodyssey.domain.model.HabitRole.DEFENSIVE && habitCompletionMap[it.id] == true }.size
+            val maxOffensiveScore = habits.filter { it.role == com.moises.vitalodyssey.domain.model.HabitRole.OFFENSIVE }.map { it.score }.maxOrNull()?.toInt() ?: 0
+            android.util.Log.d("CombatDebug", "Combat stats: offTotal=$offTotal offCompleted=$offCompleted defTotal=$defTotal defCompleted=$defCompleted maxOffScore=$maxOffensiveScore streak=${user.presenceStreak}")
 
-            // 3. Calcular Turno (Ataque Manual = true)
+            // 5. Calcular Turno (Ataque Manual = true)
             val battleResult = calculateBattleTurn(
                 playerStats = playerStats,
                 bossAttack = boss.baseAttack,
@@ -140,17 +190,20 @@ class DashboardViewModel(
                 defensiveHabitsTotal = defTotal,
                 defensiveHabitsCompleted = defCompleted,
                 isManualAttack = true,
-                maxOffensiveScore = 100, // TODO: Reemplazar por max score real
+                maxOffensiveScore = maxOffensiveScore,
                 presenceStreak = user.presenceStreak
             )
+            android.util.Log.d("CombatDebug", "BattleResult: dmgToBoss=${battleResult.damageDealtToBoss} dmgFromBoss=${battleResult.damageReceivedFromBoss} healed=${battleResult.hpHealed} xp=${battleResult.xpEarned}")
 
-            // 4. Procesar y guardar el resultado
+            // 6. Procesar y guardar el resultado
             val updatedState = processBattleResult(
                 currentLevel = user.level,
                 currentXp = user.currentXp,
                 currentHp = user.currentHp,
-                battleResult = battleResult
+                battleResult = battleResult,
+                bossesDefeatedCount = user.bossesDefeated.size
             )
+            android.util.Log.d("CombatDebug", "ProcessResult: newLevel=${updatedState.newLevel} newHp=${updatedState.newHp} newXp=${updatedState.newXp} fainted=${updatedState.isFainted} levelUp=${updatedState.didLevelUp} bossDefeated=${updatedState.bossDefeated}")
 
             currentLog = if (updatedState.didLevelUp) {
                 "¡NIVEL ${updatedState.newLevel} ALCANZADO! Tu voluntad se fortalece."
@@ -160,29 +213,47 @@ class DashboardViewModel(
                 "El Jefe ataca (${battleResult.damageReceivedFromBoss} DMG). Te curas ${battleResult.hpHealed} HP."
             }
 
-            // 5. Actualizar el Usuario en BD con los nuevos valores de vida y XP
+            // Actualizar rachas y contadores de jefes
+            val newPresenceStreak = if (updatedState.isFainted) 0 else user.presenceStreak + 1
+            val newHighestStreak = maxOf(user.highestStreak, newPresenceStreak)
+            val newBossesDefeated = if (updatedState.bossDefeated) {
+                user.bossesDefeated + boss.name
+            } else {
+                user.bossesDefeated
+            }
+
+            // 7. Actualizar el Usuario en BD con los nuevos valores de vida y XP
             userRepository.updateStats(
                 user.copy(
                     level = updatedState.newLevel,
                     currentXp = updatedState.newXp,
                     currentHp = updatedState.newHp,
-                    presenceStreak = if (updatedState.isFainted) 0 else user.presenceStreak + 1,
-                    currentStamina = newStamina
+                    presenceStreak = newPresenceStreak,
+                    highestStreak = newHighestStreak,
+                    bossesDefeated = newBossesDefeated,
+                    currentStamina = if (isDevMode) user.currentStamina else newStamina,
+                    lastUpdated = System.currentTimeMillis()
                 )
             )
 
-            // 6. Actualizar UI y mostrar el reporte de batalla
+            // 8. Actualizar UI y mostrar el reporte de batalla
+            android.util.Log.d("CombatDebug", "Updating UI: showBattleReport=true combatLog=$currentLog")
             _uiState.update { it.copy(
                 currentStamina = newStamina,
                 lastBattleResult = battleResult,
                 showBattleReport = true,
                 combatLog = currentLog
             )}
+            android.util.Log.d("CombatDebug", "=== onAttackClicked END ===")
         }
     }
 
     fun dismissBattleReport() {
         _uiState.update { it.copy(showBattleReport = false, lastBattleResult = null) }
+    }
+
+    fun dismissNoOffensiveHabitsDialog() {
+        _uiState.update { it.copy(showNoOffensiveHabitsDialog = false) }
     }
 
     fun dailyReset() {

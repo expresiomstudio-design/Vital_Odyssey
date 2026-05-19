@@ -23,6 +23,7 @@ import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.composables.icons.lucide.*
@@ -112,7 +113,8 @@ fun HabitFormScreen(
                 onValueChange = { viewModel.onNameChange(it) },
                 label = { Text("Nombre del Hábito") },
                 modifier = Modifier.fillMaxWidth(),
-                leadingIcon = { Icon(rememberVectorPainter(Lucide.Type), null) }
+                leadingIcon = { Icon(rememberVectorPainter(Lucide.Type), null) },
+                isError = uiState.name.isBlank() && uiState.errorMessage?.contains("nombre") == true
             )
 
             OutlinedTextField(
@@ -156,13 +158,15 @@ fun HabitFormScreen(
                             label = { Text(if (uiState.isCumulative) "Meta por Periodo" else "Meta por Sesión") },
                             placeholder = { Text(if (uiState.isCumulative) "Ej: 15.0" else "Ej: 5.0") },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f),
+                            isError = uiState.targetValueInput.toFloatOrNull() == null && uiState.errorMessage?.contains("meta") == true
                         )
                         OutlinedTextField(
                             value = uiState.unit,
                             onValueChange = { viewModel.onUnitChange(it) },
                             label = { Text("Unidad (Ej: Km)") },
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f),
+                            isError = uiState.unit.isBlank() && uiState.errorMessage?.contains("unidad") == true
                         )
                     }
 
@@ -205,15 +209,28 @@ fun HabitFormScreen(
             )
 
             // 6. Botón Guardar Principal
-            Button(
-                onClick = { viewModel.saveHabit() },
-                modifier = Modifier.fillMaxWidth().height(56.dp),
-                shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-            ) {
-                Icon(Icons.Default.Save, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("GUARDAR HÁBITO", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                uiState.errorMessage?.let { error ->
+                    Text(
+                        text = error,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.fillMaxWidth(),
+                        textAlign = TextAlign.Center
+                    )
+                }
+
+                Button(
+                    onClick = { viewModel.saveHabit() },
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                ) {
+                    Icon(Icons.Default.Save, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("GUARDAR HÁBITO", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                }
             }
 
             // 7. Botón Eliminar

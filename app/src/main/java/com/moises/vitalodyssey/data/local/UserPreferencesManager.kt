@@ -28,7 +28,8 @@ data class UserPrefs(
     val isLoggedIn: Boolean = false,
     val bodyType: String = "",
     val playerClass: String = "",
-    val hasCompletedOnboarding: Boolean = false
+    val hasCompletedOnboarding: Boolean = false,
+    val hasConfiguredHealthGoals: Boolean = false
 )
 
 class UserPreferencesManager(private val context: Context) {
@@ -47,6 +48,7 @@ class UserPreferencesManager(private val context: Context) {
         val BODY_TYPE = stringPreferencesKey("body_type")
         val PLAYER_CLASS = stringPreferencesKey("player_class")
         val HAS_COMPLETED_ONBOARDING = booleanPreferencesKey("has_completed_onboarding")
+        val HAS_CONFIGURED_HEALTH_GOALS = booleanPreferencesKey("has_configured_health_goals")
 
         // Health Connect & Manual Mode
         val HEALTH_CONNECT_ENABLED = booleanPreferencesKey("health_connect_enabled")
@@ -58,6 +60,9 @@ class UserPreferencesManager(private val context: Context) {
 
         // Cloud Sync
         val LAST_CLOUD_SYNC_TIME = longPreferencesKey("last_cloud_sync_time")
+
+        // Developer Mode
+        val DEVELOPER_MODE = booleanPreferencesKey("developer_mode")
     }
 
     val userPrefsFlow: Flow<UserPrefs> = context.dataStore.data
@@ -89,6 +94,7 @@ class UserPreferencesManager(private val context: Context) {
             val bodyType = preferences[PreferencesKeys.BODY_TYPE] ?: ""
             val playerClass = preferences[PreferencesKeys.PLAYER_CLASS] ?: ""
             val hasCompletedOnboarding = preferences[PreferencesKeys.HAS_COMPLETED_ONBOARDING] ?: false
+            val hasConfiguredHealthGoals = preferences[PreferencesKeys.HAS_CONFIGURED_HEALTH_GOALS] ?: false
 
             UserPrefs(
                 level = level,
@@ -103,7 +109,8 @@ class UserPreferencesManager(private val context: Context) {
                 isLoggedIn = isLoggedIn,
                 bodyType = bodyType,
                 playerClass = playerClass,
-                hasCompletedOnboarding = hasCompletedOnboarding
+                hasCompletedOnboarding = hasCompletedOnboarding,
+                hasConfiguredHealthGoals = hasConfiguredHealthGoals
             )
         }
 
@@ -115,11 +122,11 @@ class UserPreferencesManager(private val context: Context) {
 
     val stepGoalFlow: Flow<Int> = context.dataStore.data
         .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
-        .map { it[PreferencesKeys.STEP_GOAL] ?: 8000 }
+        .map { it[PreferencesKeys.STEP_GOAL] ?: it[PreferencesKeys.HEALTH_GOAL_STEPS] ?: 8000 }
 
     val sleepGoalFlow: Flow<Float> = context.dataStore.data
         .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
-        .map { it[PreferencesKeys.SLEEP_GOAL] ?: 7.5f }
+        .map { it[PreferencesKeys.SLEEP_GOAL] ?: it[PreferencesKeys.HEALTH_GOAL_SLEEP] ?: 7.5f }
 
     val lastManualStepsFlow: Flow<Long> = context.dataStore.data
         .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
@@ -137,7 +144,21 @@ class UserPreferencesManager(private val context: Context) {
         .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
         .map { it[PreferencesKeys.LAST_CLOUD_SYNC_TIME] ?: 0L }
 
+    val developerModeFlow: Flow<Boolean> = context.dataStore.data
+        .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
+        .map { it[PreferencesKeys.DEVELOPER_MODE] ?: false }
+
+    val hasConfiguredHealthGoalsFlow: Flow<Boolean> = context.dataStore.data
+        .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
+        .map { it[PreferencesKeys.HAS_CONFIGURED_HEALTH_GOALS] ?: false }
+
     // ── Suspend update functions ──────────────────────────────────────────────
+
+    suspend fun setDeveloperMode(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[PreferencesKeys.DEVELOPER_MODE] = enabled
+        }
+    }
 
     suspend fun setHealthConnectEnabled(enabled: Boolean) {
         context.dataStore.edit { preferences ->
@@ -149,6 +170,9 @@ class UserPreferencesManager(private val context: Context) {
         context.dataStore.edit { preferences ->
             preferences[PreferencesKeys.STEP_GOAL] = steps
             preferences[PreferencesKeys.SLEEP_GOAL] = sleep
+            preferences[PreferencesKeys.HEALTH_GOAL_STEPS] = steps
+            preferences[PreferencesKeys.HEALTH_GOAL_SLEEP] = sleep
+            preferences[PreferencesKeys.HAS_CONFIGURED_HEALTH_GOALS] = true
         }
     }
 
@@ -197,6 +221,9 @@ class UserPreferencesManager(private val context: Context) {
         context.dataStore.edit { preferences ->
             preferences[PreferencesKeys.HEALTH_GOAL_STEPS] = steps
             preferences[PreferencesKeys.HEALTH_GOAL_SLEEP] = sleep
+            preferences[PreferencesKeys.STEP_GOAL] = steps
+            preferences[PreferencesKeys.SLEEP_GOAL] = sleep
+            preferences[PreferencesKeys.HAS_CONFIGURED_HEALTH_GOALS] = true
         }
     }
 

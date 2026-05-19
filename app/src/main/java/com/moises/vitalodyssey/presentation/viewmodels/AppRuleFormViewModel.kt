@@ -138,9 +138,26 @@ class AppRuleFormViewModel(
     }
 
     fun saveRule() {
+        val state = _uiState.value
+        
+        if (state.packageName.isEmpty()) {
+            _uiState.update { it.copy(errorMessage = "Debes seleccionar una aplicación.") }
+            return
+        }
+        if (state.ruleName.isBlank()) {
+            _uiState.update { it.copy(errorMessage = "Debes darle un nombre a la regla.") }
+            return
+        }
+        if (!state.isBlockMode && state.timeLimitMinutes <= 0) {
+            _uiState.update { it.copy(errorMessage = "El límite de tiempo debe ser mayor a 0.") }
+            return
+        }
+        if (state.activeDays.isEmpty()) {
+            _uiState.update { it.copy(errorMessage = "Debes seleccionar al menos un día activo.") }
+            return
+        }
+
         viewModelScope.launch {
-            val state = _uiState.value
-            
             // Validador de duplicados e idénticos
             val currentRules = getAppRulesUseCase().first()
             val isDuplicate = currentRules.any { rule ->

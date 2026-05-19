@@ -15,6 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -118,7 +119,9 @@ fun AppRuleFormScreen(
                 onValueChange = { viewModel.onRuleNameChange(it) },
                 label = { Text("Nombre de la Regla") },
                 modifier = Modifier.fillMaxWidth(),
-                leadingIcon = { Icon(Lucide.Type, contentDescription = null) },
+                singleLine = true,
+                leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) },
+                isError = uiState.ruleName.isBlank() && uiState.errorMessage?.contains("nombre") == true,
                 placeholder = { Text("Ej: Limitar Redes Sociales") },
                 shape = RoundedCornerShape(12.dp)
             )
@@ -184,7 +187,8 @@ fun AppRuleFormScreen(
                         text = error,
                         color = MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.labelMedium,
-                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.fillMaxWidth(),
                         textAlign = TextAlign.Center
                     )
                 }
@@ -192,11 +196,18 @@ fun AppRuleFormScreen(
                 Button(
                     onClick = { viewModel.saveRule() },
                     modifier = Modifier.fillMaxWidth().height(56.dp),
-                    shape = RoundedCornerShape(16.dp)
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    )
                 ) {
                     Icon(Icons.Default.Save, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("GUARDAR REGLA", fontWeight = FontWeight.Bold)
+                    Text(
+                        text = if (ruleId == 0) "CREAR REGLA" else "ACTUALIZAR REGLA",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp
+                    )
                 }
             }
 

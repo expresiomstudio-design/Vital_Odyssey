@@ -171,6 +171,7 @@ fun HabitTrackingScreen(
     selectedLogForEdit?.let { log ->
         HabitLogDialog(
             habit = uiState.habit ?: return@let,
+            log = log,
             dateStr = log.date,
             onDismiss = { selectedLogForEdit = null },
             onConfirm = { state, value ->

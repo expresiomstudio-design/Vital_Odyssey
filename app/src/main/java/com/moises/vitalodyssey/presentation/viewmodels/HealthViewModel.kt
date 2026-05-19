@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.moises.vitalodyssey.data.local.UserPreferencesManager
 import com.moises.vitalodyssey.domain.repository.HealthRepository
+import com.moises.vitalodyssey.domain.repository.UserRepository
 import com.moises.vitalodyssey.domain.usecase.health.CalculateDefenseMultiplierUseCase
 import com.moises.vitalodyssey.domain.usecase.health.GetYesterdayHealthStatsUseCase
 import kotlinx.coroutines.flow.*
@@ -17,12 +18,17 @@ data class HealthUiState(
     val sleepHours: Float = 0f,
     val defenseMultiplier: Float = 1.0f,
     val showPermissionDialog: Boolean = false,
-    val showManualDialog: Boolean = false
+    val showManualDialog: Boolean = false,
+    val hasConfiguredHealthGoals: Boolean = true,
+    val showHealthGoalsDialog: Boolean = false,
+    val currentStepGoal: Int = 8000,
+    val currentSleepGoal: Float = 7.5f
 )
 
 class HealthViewModel(
     private val healthRepository: HealthRepository,
     private val userPreferencesManager: UserPreferencesManager,
+    private val userRepository: UserRepository,
     private val getYesterdayHealthStats: GetYesterdayHealthStatsUseCase,
     private val calculateDefenseMultiplier: CalculateDefenseMultiplierUseCase
 ) : ViewModel() {
@@ -42,6 +48,24 @@ class HealthViewModel(
             userPreferencesManager.healthConnectEnabledFlow.collect { enabled ->
                 _uiState.update { it.copy(isAutomatic = enabled) }
                 loadHealthData()
+            }
+        }
+
+        viewModelScope.launch {
+            userPreferencesManager.hasConfiguredHealthGoalsFlow.collect { configured ->
+                _uiState.update { it.copy(hasConfiguredHealthGoals = configured) }
+            }
+        }
+
+        viewModelScope.launch {
+            userPreferencesManager.stepGoalFlow.collect { steps ->
+                _uiState.update { it.copy(currentStepGoal = steps) }
+            }
+        }
+
+        viewModelScope.launch {
+            userPreferencesManager.sleepGoalFlow.collect { sleep ->
+                _uiState.update { it.copy(currentSleepGoal = sleep) }
             }
         }
     }
@@ -120,6 +144,31 @@ class HealthViewModel(
             )
             _uiState.update { it.copy(showManualDialog = false) }
             loadHealthData()
+        }
+    }
+
+    fun toggleHealthGoalsDialog(show: Boolean) {
+        _uiState.update { it.copy(showHealthGoalsDialog = show) }
+    }
+
+    fun submitHealthGoals(steps: Int, sleep: Float) {
+        viewModelScope.launch {
+            // 1. Guardar en DataStore (local y reactivo)
+            userPreferencesManager.updateHealthGoals(steps, sleep)
+
+            // 2. Guardar en Room + sincronizar con Firestore
+            val currentProfile = userRepository.getUserProfileOnce()
+            if (currentProfile != null) {
+                val updatedProfile = currentProfile.copy(
+                    stepGoal = steps,
+                    sleepGoal = sleep,
+                    lastUpdated = System.currentTimeMillis()
+                )
+                userRepository.updateStats(updatedProfile)
+            }
+
+            _uiState.update { it.copy(showHealthGoalsDialog = false) }
+            loadHealthData() // Recalculate multiplier with new goals
         }
     }
 }

@@ -21,4 +21,9 @@ object GameConstants {
     const val FAINT_HP_RATIO = 0.5f // Te desmayas al 50% de HP
     const val BOSS_HEAL_ON_FAINT_RATIO = 0.15f // El jefe se cura 15% si te desmayas
     const val MAX_DAILY_HEAL_RATIO = 0.10f // Te puedes curar máximo 10% de tu HP al día
+    
+    // --- PISOS MÍNIMOS DE COMBATE ---
+    const val MIN_ATTACK_COMPLETION_RATE = 0.15f  // Siempre haces al menos 15% de daño base
+    const val MIN_DEFENSE_COMPLETION_RATE = 0.10f  // Siempre curas al menos 10% del máximo
+    const val MIN_XP_COMPLETION_RATE = 0.10f        // Siempre ganas al menos 10% de XP por hábitos
 }

@@ -60,6 +60,13 @@ class UserRepositoryImpl(
     }
 
     override suspend fun updateStats(profile: UserProfile): Unit = withContext(Dispatchers.IO) {
+        val uid = currentUid
+        if (uid != null) {
+            val oldProfile = userDao.getUserOnce(uid)
+            if (oldProfile == null || oldProfile.cutoffTime != profile.cutoffTime) {
+                scheduleDailyCombatWorker(context, profile.cutoffTime)
+            }
+        }
         val userEntity = UserEntity.fromDomain(profile)
         userDao.insertOrUpdateUser(userEntity)
         scheduleCloudSync()
@@ -218,6 +225,8 @@ class UserRepositoryImpl(
                 fetchRulesFromCloud()
                 fetchBossesFromCloud()
                 fetchHabitLogsFromCloud()
+                // Restaurar DataStore desde Room tras la descarga
+                restoreDataStoreFromRoom(uid)
                 return@withContext
             }
 
@@ -230,6 +239,8 @@ class UserRepositoryImpl(
                     fetchRulesFromCloud()
                     fetchBossesFromCloud()
                     fetchHabitLogsFromCloud()
+                    // Restaurar DataStore desde Room tras la descarga
+                    restoreDataStoreFromRoom(uid)
                 } else if (localUser.lastUpdated > cloudUser.lastUpdated) {
                     android.util.Log.d("CloudSync", "Case: local is newer → uploading")
                     performFullCloudSync()
@@ -246,6 +257,34 @@ class UserRepositoryImpl(
             android.util.Log.d("CloudSync", "=== syncDatabasesOnLogin END ===")
         } catch (e: Exception) {
             android.util.Log.e("CloudSync", "=== syncDatabasesOnLogin FAILED ===", e)
+        }
+    }
+
+    /**
+     * Restaura las preferencias de DataStore (metas de salud, cutoff, etc.)
+     * a partir del perfil de usuario almacenado en Room.
+     * Se llama tras descargar datos de la nube para mantener DataStore sincronizado.
+     */
+    private suspend fun restoreDataStoreFromRoom(uid: String) {
+        android.util.Log.d("CloudSync", "restoreDataStoreFromRoom: STARTING for uid=$uid")
+        try {
+            val restoredUser = userDao.getUserOnce(uid)
+            if (restoredUser != null) {
+                android.util.Log.d("CloudSync", "restoreDataStoreFromRoom: user FOUND → stepGoal=${restoredUser.stepGoal}, sleepGoal=${restoredUser.sleepGoal}, cutoff=${restoredUser.cutoffTime}, onboarding=${restoredUser.hasCompletedOnboarding}")
+                userPrefs.updateHealthGoals(restoredUser.stepGoal, restoredUser.sleepGoal)
+                userPrefs.updateCutoffTime(restoredUser.cutoffTime)
+                if (restoredUser.hasCompletedOnboarding) {
+                    userPrefs.completeOnboarding(
+                        restoredUser.bodyType ?: com.moises.vitalodyssey.domain.model.BodyType.MALE,
+                        restoredUser.playerClass ?: com.moises.vitalodyssey.domain.model.PlayerClass.WARRIOR
+                    )
+                }
+                android.util.Log.d("CloudSync", "restoreDataStoreFromRoom: DataStore UPDATED successfully")
+            } else {
+                android.util.Log.w("CloudSync", "restoreDataStoreFromRoom: user NOT FOUND in Room after fetch!")
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("CloudSync", "restoreDataStoreFromRoom FAILED", e)
         }
     }
 
@@ -367,5 +406,41 @@ class UserRepositoryImpl(
             androidx.work.ExistingWorkPolicy.REPLACE,
             syncWorkRequest
         )
+    }
+
+    companion object {
+        fun scheduleDailyCombatWorker(context: android.content.Context, cutoffTimeStr: String) {
+            val parts = cutoffTimeStr.split(":")
+            val hour = parts.getOrNull(0)?.toIntOrNull() ?: 0
+            val minute = parts.getOrNull(1)?.toIntOrNull() ?: 0
+
+            val currentDate = java.util.Calendar.getInstance()
+            val dueDate = java.util.Calendar.getInstance().apply {
+                set(java.util.Calendar.HOUR_OF_DAY, hour)
+                set(java.util.Calendar.MINUTE, minute)
+                set(java.util.Calendar.SECOND, 0)
+                set(java.util.Calendar.MILLISECOND, 0)
+            }
+            if (dueDate.before(currentDate)) {
+                dueDate.add(java.util.Calendar.DAY_OF_YEAR, 1)
+            }
+            val timeDiff = dueDate.timeInMillis - currentDate.timeInMillis
+
+            val constraints = androidx.work.Constraints.Builder()
+                .setRequiresBatteryNotLow(true)
+                .build()
+
+            val dailyWorkRequest = androidx.work.PeriodicWorkRequestBuilder<com.moises.vitalodyssey.worker.DailyCombatWorker>(24, java.util.concurrent.TimeUnit.HOURS)
+                .setInitialDelay(timeDiff, java.util.concurrent.TimeUnit.MILLISECONDS)
+                .setConstraints(constraints)
+                .build()
+
+            androidx.work.WorkManager.getInstance(context).enqueueUniquePeriodicWork(
+                "DailyCombatWorker",
+                androidx.work.ExistingPeriodicWorkPolicy.UPDATE,
+                dailyWorkRequest
+            )
+            android.util.Log.d("CloudSync", "Rescheduled DailyCombatWorker to run at $cutoffTimeStr (delay: ${timeDiff / 1000 / 60} mins)")
+        }
     }
 }

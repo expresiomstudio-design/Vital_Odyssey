@@ -83,6 +83,34 @@ class AuthRepositoryImpl(
         }
     }
 
+    override suspend fun updateEmail(newEmail: String): AuthResult {
+        return try {
+            val user = firebaseAuth.currentUser
+            if (user != null) {
+                user.updateEmail(newEmail).await()
+                AuthResult(isSuccess = true)
+            } else {
+                AuthResult(isSuccess = false, errorMessage = "Usuario no autenticado")
+            }
+        } catch (e: Exception) {
+            AuthResult(isSuccess = false, errorMessage = e.localizedMessage)
+        }
+    }
+
+    override suspend fun updatePassword(newPassword: String): AuthResult {
+        return try {
+            val user = firebaseAuth.currentUser
+            if (user != null) {
+                user.updatePassword(newPassword).await()
+                AuthResult(isSuccess = true)
+            } else {
+                AuthResult(isSuccess = false, errorMessage = "Usuario no autenticado")
+            }
+        } catch (e: Exception) {
+            AuthResult(isSuccess = false, errorMessage = e.localizedMessage)
+        }
+    }
+
     override suspend fun logout() {
         try {
             userRepository.performFullCloudSync()
