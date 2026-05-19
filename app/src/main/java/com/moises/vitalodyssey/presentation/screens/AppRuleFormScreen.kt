@@ -58,6 +58,7 @@ fun AppRuleFormScreen(
     }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
             TopAppBar(
                 title = { Text(if (uiState.id == 0) "Nueva Regla" else "Editar Regla") },

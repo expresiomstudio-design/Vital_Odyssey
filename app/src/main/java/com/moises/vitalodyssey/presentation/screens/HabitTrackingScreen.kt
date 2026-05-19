@@ -68,6 +68,7 @@ fun HabitTrackingScreen(
     var showDatePicker by remember { mutableStateOf(false) }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
             TopAppBar(
                 title = { Text(uiState.habit?.name ?: "Hábito", fontWeight = FontWeight.Bold) },

@@ -2,14 +2,25 @@ package com.moises.vitalodyssey.presentation.screens
 
 import android.util.Log
 import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
+import androidx.compose.ui.Modifier // Modifier para Compose
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -110,17 +121,34 @@ fun LoginContent(
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
 
-    Scaffold(
-        containerColor = MaterialTheme.colorScheme.surface
-    ) { paddingValues ->
+    Box(
+        modifier = androidx.compose.ui.Modifier.fillMaxSize()
+    ) {
+        // Fondo Inmersivo
+        androidx.compose.foundation.Image(
+            painter = painterResource(id = com.moises.vitalodyssey.R.drawable.bg_log),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = androidx.compose.ui.Modifier.fillMaxSize()
+        )
+
         Column(
-            modifier = Modifier
+            modifier = androidx.compose.ui.Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
-                .padding(24.dp),
+                .padding(24.dp)
+                .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
+            horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally
         ) {
+            // Logo de la App
+            androidx.compose.foundation.Image(
+                painter = painterResource(id = com.moises.vitalodyssey.R.drawable.logo_vital_odyssey_stacked),
+                contentDescription = "Vital Odyssey Logo",
+                modifier = Modifier
+                    .size(180.dp)
+                    .padding(bottom = 16.dp)
+            )
+
             Text(
                 text = "VITAL ODYSSEY",
                 style = MaterialTheme.typography.displayLarge.copy(
@@ -132,51 +160,79 @@ fun LoginContent(
                 textAlign = TextAlign.Center
             )
             
-            Text(
-                text = if (uiState.isLoginMode) "TU LEYENDA COMIENZA AQUÍ" else "FORJA TU PROPIO DESTINO",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            Surface(
+                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f),
+                shape = RoundedCornerShape(8.dp),
                 modifier = Modifier.padding(bottom = 48.dp)
-            )
+            ) {
+                Text(
+                    text = if (uiState.isLoginMode) "FORJA TU PROPIO DESTINO" else "TU LEYENDA COMIENZA AQUÍ",
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold
+                )
+            }
 
-            OutlinedTextField(
+            // Campos de texto más opacos y con texto blanco
+            TextField(
                 value = email,
                 onValueChange = { email = it },
-                label = { Text("Correo Electrónico") },
-                modifier = Modifier.fillMaxWidth(),
+                label = { Text("Correo Electrónico", color = Color.White.copy(alpha = 0.7f)) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)),
                 leadingIcon = { 
                     Icon(
                         painter = rememberVectorPainter(Lucide.Mail), 
                         contentDescription = null,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(20.dp),
+                        tint = Color.White
                     ) 
                 },
                 singleLine = true,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = MaterialTheme.colorScheme.primaryContainer,
-                    focusedLabelColor = MaterialTheme.colorScheme.primaryContainer
+                textStyle = MaterialTheme.typography.bodyLarge.copy(color = Color.White),
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = Color.Transparent,
+                    unfocusedContainerColor = Color.Transparent,
+                    focusedIndicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                    unfocusedIndicatorColor = Color.Transparent,
+                    cursorColor = Color.White,
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White
                 )
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            OutlinedTextField(
+            TextField(
                 value = password,
                 onValueChange = { password = it },
-                label = { Text("Contraseña") },
-                modifier = Modifier.fillMaxWidth(),
+                label = { Text("Contraseña", color = Color.White.copy(alpha = 0.7f)) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)),
                 leadingIcon = { 
                     Icon(
                         painter = rememberVectorPainter(Lucide.Lock), 
                         contentDescription = null,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(20.dp),
+                        tint = Color.White
                     ) 
                 },
                 visualTransformation = PasswordVisualTransformation(),
                 singleLine = true,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = MaterialTheme.colorScheme.primaryContainer,
-                    focusedLabelColor = MaterialTheme.colorScheme.primaryContainer
+                textStyle = MaterialTheme.typography.bodyLarge.copy(color = Color.White),
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = Color.Transparent,
+                    unfocusedContainerColor = Color.Transparent,
+                    focusedIndicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                    unfocusedIndicatorColor = Color.Transparent,
+                    cursorColor = Color.White,
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White
                 )
             )
 
@@ -185,21 +241,28 @@ fun LoginContent(
             if (uiState.isLoading) {
                 CircularProgressIndicator(color = MaterialTheme.colorScheme.primaryContainer)
             } else {
+                val isFormValid = email.isNotBlank() && password.isNotBlank()
+                // Botón Sólido con texto negro y lógica de habilitado
                 Button(
                     onClick = { onLoginClick(email, password) },
+                    enabled = isFormValid,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(56.dp),
+                        .height(64.dp)
+                        .alpha(if (isFormValid) 1f else 0.5f),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onPrimary
+                        contentColor = Color.Black,
+                        disabledContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                        disabledContentColor = Color(0xFF444444)
                     ),
-                    shape = MaterialTheme.shapes.medium
+                    shape = RoundedCornerShape(16.dp)
                 ) {
                     Text(
                         text = if (uiState.isLoginMode) "INICIAR AVENTURA" else "FORJAR LEYENDA",
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = 1.sp
                     )
                 }
 
@@ -209,27 +272,38 @@ fun LoginContent(
                     onClick = onGoogleLoginClick,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(56.dp),
-                    shape = MaterialTheme.shapes.medium,
+                        .height(64.dp)
+                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.4f), RoundedCornerShape(16.dp)),
+                    shape = RoundedCornerShape(16.dp),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primaryContainer),
                     colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = MaterialTheme.colorScheme.primary
+                        contentColor = Color.White
                     )
                 ) {
-                    Text(text = "Continuar con Google")
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(text = "Continuar con Google", fontWeight = FontWeight.Bold)
+                    }
                 }
 
                 TextButton(
                     onClick = onToggleModeClick,
                     modifier = Modifier.padding(top = 16.dp)
                 ) {
-                    Text(
-                        text = if (uiState.isLoginMode) "¿No tienes cuenta? Regístrate aquí" 
-                               else "¿Ya tienes cuenta? Inicia sesión",
-                        color = MaterialTheme.colorScheme.primaryContainer
-                    )
+                    Surface(
+                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text(
+                            text = if (uiState.isLoginMode) "¿No tienes cuenta? Regístrate aquí" 
+                                   else "¿Ya tienes cuenta? Inicia sesión",
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                            color = Color.White,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
                 }
             }
-
+            
             uiState.errorMessage?.let {
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(

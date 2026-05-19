@@ -6,6 +6,8 @@ import com.moises.vitalodyssey.data.local.BossDao
 import com.moises.vitalodyssey.data.local.BossEntity
 import com.moises.vitalodyssey.data.local.Difficulty
 import com.moises.vitalodyssey.data.local.HabitDao
+import com.moises.vitalodyssey.domain.model.BodyType
+import com.moises.vitalodyssey.domain.model.PlayerClass
 import com.moises.vitalodyssey.domain.repository.UserRepository
 import com.moises.vitalodyssey.domain.usecase.*
 import com.moises.vitalodyssey.domain.usecase.apprules.CalculateFocoArcanoUseCase
@@ -28,7 +30,10 @@ data class DashboardUiState(
     val combatLog: String = "La noche es oscura, pero tu voluntad es de hierro.",
     val currentBoss: BossEntity? = null,
     val lastBattleResult: BattleResult? = null,
-    val showBattleReport: Boolean = false
+    val showBattleReport: Boolean = false,
+    val bodyType: BodyType? = null,
+    val playerClass: PlayerClass? = null,
+    val playerName: String = "HÉROE"
 )
 
 class DashboardViewModel(
@@ -39,6 +44,7 @@ class DashboardViewModel(
     private val processBattleResult: ProcessBattleResultUseCase,
     private val calculateFocoArcano: CalculateFocoArcanoUseCase,
     private val calculateDefenseMultiplierUseCase: CalculateDefenseMultiplierUseCase,
+    private val checkAndSeedInitialBossUseCase: CheckAndSeedInitialBossUseCase,
     private val bossDao: BossDao,
     private val habitDao: HabitDao
 ) : ViewModel() {
@@ -50,22 +56,14 @@ class DashboardViewModel(
 
     init {
         viewModelScope.launch {
-            // Inicializar el Jefe si la base de datos está vacía
-            val existingBoss = bossDao.getCurrentBoss()
-            if (existingBoss == null) {
-                bossDao.insertBoss(
-                    BossEntity(
-                        id = 1,
-                        name = "Titan Procrastinador",
-                        imageAssetId = "titan_1",
-                        difficulty = "NORMAL",
-                        maxHp = 5000,
-                        currentHp = 5000,
-                        baseAttack = 150
-                    )
-                )
-            }
+            // 1. Obtenemos el perfil del usuario (para saber su nivel)
+            val user = userRepository.getUserProfile().firstOrNull()
+            val playerLevel = user?.level ?: 1
+            
+            // 2. Ejecutamos el Seed (si ya hay jefe, esta función no hará nada)
+            checkAndSeedInitialBossUseCase(playerLevel)
 
+            // 3. Comenzamos a observar los datos del jefe para la UI
             bossDao.getCurrentBossFlow().collect { boss ->
                 _uiState.update { it.copy(currentBoss = boss) }
             }
@@ -102,7 +100,10 @@ class DashboardViewModel(
                         attackMultiplier = atkMult,
                         defenseStat = stats.baseDefense,
                         defenseMultiplier = defMult,
-                        combatLog = currentLog
+                        combatLog = currentLog,
+                        bodyType = profile.bodyType,
+                        playerClass = profile.playerClass,
+                        playerName = profile.name.ifBlank { "HÉROE" }
                     )
                 }
             }

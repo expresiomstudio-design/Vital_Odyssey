@@ -11,11 +11,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
-import com.composables.icons.lucide.Heart
-import com.composables.icons.lucide.Lucide
-import com.composables.icons.lucide.ShieldAlert
-import com.composables.icons.lucide.Sword
-import com.composables.icons.lucide.Star
+import androidx.compose.ui.res.painterResource
 import com.moises.vitalodyssey.domain.usecase.BattleResult
 
 @Composable
@@ -44,18 +40,18 @@ fun BattleReportDialog(
                 HorizontalDivider(modifier = Modifier.alpha(0.5f))
 
                 // Daño Infligido
-                ReportRow(icon = Lucide.Sword, color = androidx.compose.ui.graphics.Color(0xFF4CAF50), label = "Daño al Jefe", value = "${result.damageDealtToBoss}")
+                ReportRow(iconRes = com.moises.vitalodyssey.R.drawable.ic_stat_attack, color = androidx.compose.ui.graphics.Color(0xFF4CAF50), label = "Daño al Jefe", value = "${result.damageDealtToBoss}")
                 
                 // Daño Recibido
-                ReportRow(icon = Lucide.ShieldAlert, color = androidx.compose.ui.graphics.Color(0xFFF44336), label = "Daño Recibido", value = "${result.damageReceivedFromBoss}")
+                ReportRow(iconRes = com.moises.vitalodyssey.R.drawable.ic_stat_defense, color = androidx.compose.ui.graphics.Color(0xFFF44336), label = "Daño Recibido", value = "${result.damageReceivedFromBoss}")
                 
                 // Curación
                 if (result.hpHealed > 0) {
-                    ReportRow(icon = Lucide.Heart, color = androidx.compose.ui.graphics.Color(0xFFE91E63), label = "Salud Recuperada", value = "+${result.hpHealed}")
+                    ReportRow(iconRes = com.moises.vitalodyssey.R.drawable.ic_stat_health, color = androidx.compose.ui.graphics.Color(0xFFE91E63), label = "Salud Recuperada", value = "+${result.hpHealed}")
                 }
                 
                 // XP
-                ReportRow(icon = Lucide.Star, color = androidx.compose.ui.graphics.Color(0xFFFFC107), label = "Experiencia Ganada", value = "+${result.xpEarned} XP")
+                ReportRow(iconRes = com.moises.vitalodyssey.R.drawable.ic_stat_experience, color = androidx.compose.ui.graphics.Color(0xFFFFC107), label = "Experiencia Ganada", value = "+${result.xpEarned} XP")
 
                 Spacer(modifier = Modifier.height(8.dp))
 
@@ -72,14 +68,18 @@ fun BattleReportDialog(
 }
 
 @Composable
-private fun ReportRow(icon: androidx.compose.ui.graphics.vector.ImageVector, color: androidx.compose.ui.graphics.Color, label: String, value: String) {
+private fun ReportRow(iconRes: Int, color: androidx.compose.ui.graphics.Color, label: String, value: String) {
     Row(
         modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), RoundedCornerShape(8.dp)).padding(12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Icon(imageVector = icon, contentDescription = null, tint = color, modifier = Modifier.size(20.dp))
+            androidx.compose.foundation.Image(
+                painter = painterResource(id = iconRes),
+                contentDescription = null,
+                modifier = Modifier.size(39.dp)
+            )
             Text(text = label, style = MaterialTheme.typography.bodyMedium)
         }
         Text(text = value, style = MaterialTheme.typography.titleMedium, color = color, fontWeight = FontWeight.Bold)

@@ -35,7 +35,7 @@ class MainActivity : ComponentActivity() {
             VitalOdysseyTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background,
+                    color = MaterialTheme.colorScheme.surface,
                 ) {
                     VitalOdysseyMainScreen()
                 }
@@ -146,6 +146,7 @@ fun MainContainerScreen(
     val currentRoute = navBackStackEntry?.destination?.route
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.surface,
         bottomBar = {
             VitalOdysseyBottomNavBar(
                 currentRoute = currentRoute,
@@ -200,39 +201,48 @@ fun MainContainerScreen(
 @Composable
 fun SplashScreen() {
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        MaterialTheme.colorScheme.surface,
-                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f)
-                    )
-                )
-            ),
+        modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
+        // Fondo Inmersivo (Mismo que el Login)
+        androidx.compose.foundation.Image(
+            painter = androidx.compose.ui.res.painterResource(id = R.drawable.bg_log),
+            contentDescription = null,
+            contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+            modifier = Modifier.fillMaxSize()
+        )
+
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                text = "VITAL ODYSSEY",
-                style = MaterialTheme.typography.displayLarge,
-                color = MaterialTheme.colorScheme.primaryContainer,
-                letterSpacing = 4.sp,
-                fontWeight = FontWeight.Bold
+            // Logo Central (Reducido para evitar sensación de recorte)
+            androidx.compose.foundation.Image(
+                painter = androidx.compose.ui.res.painterResource(id = R.drawable.logo_vital_odyssey_stacked),
+                contentDescription = "Logo Vital Odyssey",
+                modifier = Modifier.size(220.dp)
             )
-            Spacer(modifier = Modifier.height(24.dp))
+
+            Spacer(modifier = Modifier.height(32.dp))
+
             CircularProgressIndicator(
                 color = MaterialTheme.colorScheme.primaryContainer,
-                strokeWidth = 3.dp,
-                modifier = Modifier.size(48.dp)
+                strokeWidth = 4.dp,
+                modifier = Modifier.size(56.dp)
             )
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = "CARGANDO MUNDO...",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f),
-                letterSpacing = 2.sp
-            )
+            
+            Spacer(modifier = Modifier.height(24.dp))
+            
+            Surface(
+                color = androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.5f),
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp)
+            ) {
+                Text(
+                    text = "CARGANDO MUNDO...",
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = androidx.compose.ui.graphics.Color.White,
+                    letterSpacing = 3.sp,
+                    fontWeight = FontWeight.ExtraBold
+                )
+            }
         }
     }
 }

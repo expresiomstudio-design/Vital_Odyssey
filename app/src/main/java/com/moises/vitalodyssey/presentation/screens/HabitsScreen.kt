@@ -19,9 +19,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.composables.icons.lucide.*
 import com.moises.vitalodyssey.domain.model.*
 import com.moises.vitalodyssey.presentation.components.HabitLogDialog
@@ -78,7 +80,6 @@ fun HabitsScreenContent(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .statusBarsPadding()
     ) {
         LazyColumn(
             modifier = Modifier
@@ -121,7 +122,7 @@ fun HabitsScreenContent(
 @Composable
 fun SectionHeader(title: String, onAddClick: () -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
@@ -130,11 +131,22 @@ fun SectionHeader(title: String, onAddClick: () -> Unit) {
             style = MaterialTheme.typography.displayLarge, 
             color = MaterialTheme.colorScheme.primaryContainer
         )
-        IconButton(
-            onClick = onAddClick,
-            colors = IconButtonDefaults.filledIconButtonColors(MaterialTheme.colorScheme.primaryContainer)
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.clickable { onAddClick() 
         ) {
-            Icon(Icons.Default.Add, contentDescription = "Add Habit", tint = MaterialTheme.colorScheme.surface)
+            androidx.compose.foundation.Image(
+                painter = painterResource(id = com.moises.vitalodyssey.R.drawable.ic_action_add),
+                contentDescription = "Add",
+                modifier = Modifier.size(56.dp)
+            )
+            Text(
+                text = "AÑADIR",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primaryContainer,
+                fontWeight = FontWeight.Bold,
+                fontSize = 10.sp
+            
         }
     }
 }

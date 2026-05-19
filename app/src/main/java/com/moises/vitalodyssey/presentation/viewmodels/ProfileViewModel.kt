@@ -30,7 +30,9 @@ data class ProfileUiState(
     val isSaving: Boolean = false,
     val isLoggedOut: Boolean = false,
     val showDeleteSuccess: Boolean = false,
-    val deleteProgress: Float = 0f
+    val deleteProgress: Float = 0f,
+    val bodyType: com.moises.vitalodyssey.domain.model.BodyType? = null,
+    val playerClassEnum: com.moises.vitalodyssey.domain.model.PlayerClass? = null
 )
 
 class ProfileViewModel(
@@ -77,7 +79,9 @@ class ProfileViewModel(
                 isSaving = saving,
                 isLoggedOut = loggedOut,
                 showDeleteSuccess = success,
-                deleteProgress = progress
+                deleteProgress = progress,
+                bodyType = profile?.bodyType,
+                playerClassEnum = profile?.playerClass
             )
         }
     }.stateIn(

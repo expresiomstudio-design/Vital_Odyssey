@@ -20,9 +20,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -34,6 +38,7 @@ import com.moises.vitalodyssey.presentation.components.BattleReportDialog
 import com.moises.vitalodyssey.presentation.components.VitalOdysseyBottomNavBar
 import com.moises.vitalodyssey.presentation.viewmodels.DashboardUiState
 import com.moises.vitalodyssey.presentation.viewmodels.DashboardViewModel
+import com.moises.vitalodyssey.presentation.utils.AvatarUtils
 import com.moises.vitalodyssey.ui.theme.OdysseyTheme
 import org.koin.androidx.compose.koinViewModel
 
@@ -62,7 +67,8 @@ fun DashboardScreenContent(
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
             topBar = { TopProfileBar(uiState, onNavigateToProfile) },
-            containerColor = MaterialTheme.colorScheme.surface
+            containerColor = MaterialTheme.colorScheme.surface,
+            contentWindowInsets = WindowInsets(0.dp)
         ) { padding ->
             Column(
                 modifier = Modifier
@@ -70,7 +76,7 @@ fun DashboardScreenContent(
                     .padding(padding)
                     .padding(horizontal = 12.dp)
                     .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 StatusBarsSection(uiState)
 
@@ -78,18 +84,16 @@ fun DashboardScreenContent(
 
                 BossEncounterCard(boss = uiState.currentBoss, logText = uiState.combatLog)
 
+                // ── Botón de ataque ─────────────────────────────────────────
+                AttackFab(
+                    isEnabled = uiState.currentStamina >= 33,
+                    onAttack = onAttackClicked,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
                 Spacer(modifier = Modifier.height(16.dp))
             }
         }
-
-        // ── Botón de ataque flotante ─────────────────────────────────────────
-        AttackFab(
-            isEnabled = uiState.currentStamina >= 33,
-            onAttack = onAttackClicked,
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(end = 16.dp, bottom = 120.dp)
-        )
 
         if (uiState.showBattleReport && uiState.lastBattleResult != null) {
             BattleReportDialog(
@@ -108,31 +112,46 @@ fun TopProfileBar(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .statusBarsPadding()
-            .padding(16.dp),
+            .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Box(
             modifier = Modifier
-                .size(48.dp)
+                .size(52.dp)
                 .clip(CircleShape)
+                .background(Color.White) // Fondo blanco puro como se pidió
                 .border(2.dp, MaterialTheme.colorScheme.primaryContainer, CircleShape)
-                .clickable { onNavigateToProfile() }
+                .clickable { onNavigateToProfile() },
+            contentAlignment = Alignment.TopCenter
         ) {
-            AsyncImage(
-                model = "https://picsum.photos/seed/warrior/200",
+            androidx.compose.foundation.Image(
+                painter = painterResource(id = AvatarUtils.getPlayerAvatar(state.playerClass, state.bodyType)),
                 contentDescription = null,
-                contentScale = ContentScale.Crop
+                contentScale = ContentScale.Crop,
+                alignment = Alignment.TopCenter,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        scaleX = 2.2f // Zoom para ver la cara
+                        scaleY = 2.2f
+                        translationY = 45f // Bajado más para centrar mejor el rostro
+                    }
             )
         }
 
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                "Moisés Sánchez", 
+                state.playerName,
                 style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.primaryContainer
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
             )
+            Text(
+                state.playerClass?.name ?: "SIN CLASE",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )            
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
                     "NIVEL ${state.level}", 
@@ -154,10 +173,10 @@ fun TopProfileBar(
         }
 
         IconButton(onClick = onNavigateToProfile) {
-            Icon(
-                painter = rememberVectorPainter(Lucide.Settings), 
-                contentDescription = null, 
-                tint = MaterialTheme.colorScheme.primaryContainer
+            androidx.compose.foundation.Image(
+                painter = painterResource(id = com.moises.vitalodyssey.R.drawable.ic_screen_config),
+                contentDescription = null,
+                modifier = Modifier.size(52.dp)
             )
         }
     }
@@ -165,48 +184,28 @@ fun TopProfileBar(
 
 @Composable
 fun StatusBarsSection(state: DashboardUiState) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        StatusBar(
-            label = "VIDA",
-            valueText = state.hpText,
-            progress = state.visualHpPercent,
-            color = MaterialTheme.colorScheme.error,
-            iconPainter = rememberVectorPainter(Lucide.Heart)
-        )
-        StatusBar(
-            label = "ESTAMINA",
-            valueText = "${state.currentStamina}%",
-            progress = state.currentStamina / 100f,
-            color = MaterialTheme.colorScheme.tertiaryContainer,
-            iconPainter = rememberVectorPainter(Lucide.Zap)
-        )
-    }
-}
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        val currentHp = state.hpText.substringBefore(" / ")
+        val maxHp = if (state.hpText.contains(" / ")) "/ " + state.hpText.substringAfter(" / ") else ""
 
-@Composable
-fun StatusBar(label: String, valueText: String, progress: Float, color: androidx.compose.ui.graphics.Color, iconPainter: Painter) {
-    val animatedProgress by animateFloatAsState(targetValue = progress, animationSpec = tween(800), label = "StatusBarProgress")
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                Icon(iconPainter, contentDescription = null, tint = color, modifier = Modifier.size(14.dp))
-                Text(
-                    label, 
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                )
-            }
-            Text(
-                valueText, 
-                style = MaterialTheme.typography.bodySmall,
-                color = color
-            )
-        }
-        LinearProgressIndicator(
-            progress = { animatedProgress },
-            modifier = Modifier.fillMaxWidth().height(8.dp).clip(CircleShape),
-            color = color,
-            trackColor = MaterialTheme.colorScheme.surfaceVariant
+        AttributeCard(
+            modifier = Modifier.weight(1f),
+            label = "VIDA",
+            value = currentHp,
+            subValue = maxHp,
+            color = MaterialTheme.colorScheme.error,
+            iconRes = com.moises.vitalodyssey.R.drawable.ic_stat_health,
+            progress = state.visualHpPercent
+        )
+
+        AttributeCard(
+            modifier = Modifier.weight(1f),
+            label = "ESTAMINA",
+            value = "${state.currentStamina}%",
+            subValue = "",
+            color = MaterialTheme.colorScheme.tertiaryContainer,
+            iconRes = com.moises.vitalodyssey.R.drawable.ic_stat_stamine,
+            progress = state.currentStamina / 100f
         )
     }
 }
@@ -230,8 +229,8 @@ fun AttributesRow(state: DashboardUiState) {
             value = realAttack.toString(), 
             subValue = "(x${String.format(java.util.Locale.US, "%.1f", atkMult)})", 
             color = attackColor, 
-            iconPainter = rememberVectorPainter(Lucide.Sword),
-            ringProgress = attackProgress 
+            iconRes = com.moises.vitalodyssey.R.drawable.ic_stat_attack,
+            progress = attackProgress 
         )
         
         // 2. Lógica de DEFENSA (Basado en salud de Google Health Connect, max 1.5f)
@@ -250,51 +249,76 @@ fun AttributesRow(state: DashboardUiState) {
             value = realDefense.toString(), 
             subValue = "(x${String.format(java.util.Locale.US, "%.1f", defMult)})", 
             color = defenseColor, 
-            iconPainter = rememberVectorPainter(Lucide.Shield),
-            ringProgress = defenseProgress
+            iconRes = com.moises.vitalodyssey.R.drawable.ic_stat_defense,
+            progress = defenseProgress
         )
     }
 }
 
 @Composable
-fun AttributeCard(modifier: Modifier, label: String, value: String, subValue: String, color: androidx.compose.ui.graphics.Color, iconPainter: Painter, ringProgress: Float) {
-    val animatedProgress by animateFloatAsState(targetValue = ringProgress, animationSpec = tween(1000), label = "ring")
+fun AttributeCard(
+    modifier: Modifier, 
+    label: String, 
+    value: String, 
+    subValue: String, 
+    color: Color, 
+    iconRes: Int, 
+    progress: Float
+) {
+    val animatedProgress by animateFloatAsState(
+        targetValue = progress, 
+        animationSpec = tween(1000), 
+        label = "progress"
+    )
     Row(
         modifier = modifier
             .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
             .border(1.dp, color.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
-            .padding(10.dp),
+            .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        Box(modifier = Modifier.size(46.dp), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator(
-                progress = { animatedProgress },
-                modifier = Modifier.fillMaxSize(),
-                color = color,
-                trackColor = color.copy(alpha = 0.2f),
-                strokeWidth = 3.dp,
-                strokeCap = androidx.compose.ui.graphics.StrokeCap.Round
+        // Icono Webp
+        androidx.compose.foundation.Image(
+            painter = painterResource(id = iconRes),
+            contentDescription = null,
+            modifier = Modifier.size(46.dp)
+        )
+        
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                label, 
+                style = MaterialTheme.typography.labelSmall, 
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                fontWeight = FontWeight.ExtraBold
             )
-            Box(
+            
+            // Barra de Progreso Estilo Nivel (Debajo del nombre)
+            LinearProgressIndicator(
+                progress = { animatedProgress },
                 modifier = Modifier
-                    .size(34.dp)
-                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp)), 
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(iconPainter, contentDescription = null, tint = color, modifier = Modifier.size(18.dp))
-            }
-        }
-        Column(verticalArrangement = Arrangement.Center) {
-            Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
+                    .fillMaxWidth()
+                    .height(5.dp)
+                    .clip(CircleShape),
+                color = color,
+                trackColor = color.copy(alpha = 0.2f)
+            )
+
             Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(value, style = MaterialTheme.typography.titleLarge, color = color)
                 Text(
-                    text = subValue, 
-                    style = MaterialTheme.typography.labelSmall, 
-                    color = color.copy(alpha = 0.8f),
-                    modifier = Modifier.padding(bottom = 3.dp)
+                    value, 
+                    style = MaterialTheme.typography.titleMedium, 
+                    color = color,
+                    fontWeight = FontWeight.Black
                 )
+                if (subValue.isNotEmpty()) {
+                    Text(
+                        text = subValue, 
+                        style = MaterialTheme.typography.labelSmall, 
+                        color = color.copy(alpha = 0.6f),
+                        modifier = Modifier.padding(bottom = 2.dp)
+                    )
+                }                
             }
         }
     }
@@ -304,68 +328,102 @@ fun AttributeCard(modifier: Modifier, label: String, value: String, subValue: St
 fun BossEncounterCard(boss: BossEntity?, logText: String) {
     if (boss == null) {
         // Skeleton de carga si no hay jefe aún
-        Box(modifier = Modifier.fillMaxWidth().height(220.dp).background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(32.dp)))
+        Box(modifier = Modifier.fillMaxWidth().height(240.dp).background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(32.dp)))
         return
     }
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(220.dp)
+            .height(360.dp) // Tarjeta más alta
             .clip(RoundedCornerShape(32.dp))
             .border(1.dp, MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f), RoundedCornerShape(32.dp))
             .background(MaterialTheme.colorScheme.surfaceVariant)
     ) {
-        // TODO: En el futuro cambiar a AsyncImage cargando boss.imageAssetId desde los assets locales
-        AsyncImage(
-            model = "https://picsum.photos/seed/titan/800/1200", 
-            contentDescription = null,
-            modifier = Modifier.fillMaxSize().alpha(0.3f),
-            contentScale = ContentScale.Crop
+        // 1. FONDO DINÁMICO DEL JEFE
+        androidx.compose.foundation.Image(
+            painter = painterResource(id = getBossBackground(boss.imageAssetId)),
+            contentDescription = "Fondo del Jefe",
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop, // Para que llene toda la tarjeta sin deformarse
+            alpha = 0.6f // Ligeramente transparente para que no sature la vista
         )
+
+        // 2. JEFE EN PRIMER PLANO (Abajo)
+        androidx.compose.foundation.Image(
+            painter = painterResource(id = getBossForeground(boss.imageAssetId)),
+            contentDescription = "Jefe",
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(280.dp) // Jefe más grande
+                .align(Alignment.BottomCenter)
+                .offset(y = 20.dp), // Desplazado ligeramente hacia abajo
+            contentScale = ContentScale.Fit
+        )
+
+        // 3. DEGRADADO OSCURO SUPERIOR (Para que los textos destaquen)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(140.dp)
+                .align(Alignment.TopCenter)
+                .background(
+                    androidx.compose.ui.graphics.Brush.verticalGradient(
+                        colors = listOf(
+                            androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.85f),
+                            androidx.compose.ui.graphics.Color.Transparent
+                        )
+                    )
+                )
+        )
+
+        // 4. CONTENIDO (Nombre, Dificultad, Barra HP) ARRIBA        
         Column(
-            modifier = Modifier.fillMaxSize().padding(16.dp), 
+            modifier = Modifier
+                .fillMaxWidth()
+                .align(Alignment.TopCenter)
+                .padding(top = 16.dp, start = 16.dp, end = 16.dp), 
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            verticalArrangement = Arrangement.Top // Todo hacia arriba
         ) {
-            Surface(color = MaterialTheme.colorScheme.error, shape = CircleShape) {
+            Surface(color = MaterialTheme.colorScheme.error, shape = RoundedCornerShape(50)) {
                 Text(
                     "NIVEL DE AMENAZA: ${boss.difficulty}", 
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    color = MaterialTheme.colorScheme.onError,
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
                 )
             }
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(4.dp))
             Text(
                 boss.name, 
-                style = MaterialTheme.typography.titleLarge, 
-                color = MaterialTheme.colorScheme.onSurface, 
-                textAlign = TextAlign.Center
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold), 
+                color = androidx.compose.ui.graphics.Color.White, // Forzamos blanco por el degradado
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
-            
+            Text(
+                text = "\"${boss.catchPhrase}\"",
+                style = MaterialTheme.typography.bodySmall.copy(fontStyle = androidx.compose.ui.text.font.FontStyle.Italic),
+                color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.9f),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                modifier = Modifier.padding(top = 2.dp)
+            )
+
             // Barra de Vida del Jefe
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(8.dp))
             val hpProgress = if (boss.maxHp > 0) boss.currentHp.toFloat() / boss.maxHp.toFloat() else 0f
-            val animatedHp by animateFloatAsState(targetValue = hpProgress, label = "bossHp")
+            val animatedHp by androidx.compose.animation.core.animateFloatAsState(targetValue = hpProgress, label = "bossHp")
             LinearProgressIndicator(
                 progress = { animatedHp },
-                modifier = Modifier.fillMaxWidth(0.8f).height(12.dp).clip(RoundedCornerShape(50)),
+                modifier = Modifier.fillMaxWidth(0.85f).height(12.dp).clip(RoundedCornerShape(50)),
                 color = androidx.compose.ui.graphics.Color(0xFFE91E63),
-                trackColor = androidx.compose.ui.graphics.Color(0xFFE91E63).copy(alpha = 0.2f)
+                trackColor = androidx.compose.ui.graphics.Color.DarkGray.copy(alpha = 0.6f)
             )
             Text(
                 "${boss.currentHp} / ${boss.maxHp} HP", 
                 style = MaterialTheme.typography.labelMedium,
+                color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.8f),
                 modifier = Modifier.padding(top = 4.dp)
-            )
-            
-            Text(
-                logText,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(vertical = 8.dp)
             )
         }
     }
@@ -417,11 +475,10 @@ fun AttackFab(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 if (isEnabled) {
-                    Icon(
-                        painter = rememberVectorPainter(Lucide.Sword),
+                    androidx.compose.foundation.Image(
+                        painter = painterResource(id = com.moises.vitalodyssey.R.drawable.ic_action_attack),
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(22.dp)
+                        modifier = Modifier.size(36.dp)
                     )
                 }
                 Text(
@@ -460,5 +517,31 @@ fun DashboardScreenPreview() {
             onDismissBattleReport = {},
             onNavigateToProfile = {}
         )
+    }
+}
+
+@androidx.annotation.DrawableRes
+private fun getBossBackground(assetId: String): Int {
+    return when (assetId) {
+        "boss_stone_golem", "boss_1", "titan_1" -> com.moises.vitalodyssey.R.drawable.bg_stone_golem
+        "boss_sleep_spirit", "boss_2" -> com.moises.vitalodyssey.R.drawable.bg_boss_sleep_spirit
+        "boss_shadow_mage", "boss_3" -> com.moises.vitalodyssey.R.drawable.bg_boss_shadow_mage
+        "boss_fire_demon", "boss_4" -> com.moises.vitalodyssey.R.drawable.bg_boss_fire_demon
+        "boss_silk_embrace", "boss_5" -> com.moises.vitalodyssey.R.drawable.bg_boss_silk_embrace
+        "boss_mirror_king", "boss_6" -> com.moises.vitalodyssey.R.drawable.bg_boss_mirror_king
+        else -> com.moises.vitalodyssey.R.drawable.ic_action_attack // Fondo por defecto de seguridad
+    }
+}
+
+@androidx.annotation.DrawableRes
+private fun getBossForeground(assetId: String): Int {
+    return when (assetId) {
+        "boss_stone_golem", "boss_1", "titan_1" -> com.moises.vitalodyssey.R.drawable.boss_stone_golem
+        "boss_sleep_spirit", "boss_2" -> com.moises.vitalodyssey.R.drawable.boss_sleep_spirit
+        "boss_shadow_mage", "boss_3" -> com.moises.vitalodyssey.R.drawable.boss_shadow_mage
+        "boss_fire_demon", "boss_4" -> com.moises.vitalodyssey.R.drawable.boss_fire_demon
+        "boss_silk_embrace", "boss_5" -> com.moises.vitalodyssey.R.drawable.boss_silk_embrace
+        "boss_mirror_king", "boss_6" -> com.moises.vitalodyssey.R.drawable.boss_mirror_king
+        else -> com.moises.vitalodyssey.R.drawable.ic_action_attack // Fondo por defecto de seguridad
     }
 }

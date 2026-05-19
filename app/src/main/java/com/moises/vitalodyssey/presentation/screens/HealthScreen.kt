@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -64,7 +65,6 @@ fun HealthScreen(viewModel: HealthViewModel = koinViewModel()) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .statusBarsPadding()
     ) {
         LazyColumn(
             modifier = Modifier
@@ -72,7 +72,7 @@ fun HealthScreen(viewModel: HealthViewModel = koinViewModel()) {
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            item { Spacer(modifier = Modifier.height(8.dp)) }
+            item { Spacer(modifier = Modifier.height(2.dp)) }
 
             // ── Cabecera ──────────────────────────────────────────────────────
             item {
@@ -91,8 +91,47 @@ fun HealthScreen(viewModel: HealthViewModel = koinViewModel()) {
             // ── Tarjeta del Escudo ────────────────────────────────────────────
             item { ShieldStatusCard(multiplier = uiState.defenseMultiplier) }
 
-            // ── Datos del Día Anterior ────────────────────────────────────────
-            item { YesterdayDataCard(uiState = uiState) }
+            // ── Datos del Día Anterior (Pasos y Sueño separados) ──────────────
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    MetricCard(
+                        iconRes = com.moises.vitalodyssey.R.drawable.ic_stat_steps,
+                        value = "%,d".format(uiState.steps),
+                        label = "Pasos de ayer",
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.weight(1f)
+                    )
+                    MetricCard(
+                        iconRes = com.moises.vitalodyssey.R.drawable.ic_stat_sleep,
+                        value = "${"%.1f".format(uiState.sleepHours)}h",
+                        label = "Sueño de ayer",
+                        color = MaterialTheme.colorScheme.tertiary,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+
+            // Aviso de datos faltantes
+            if (!uiState.isAutomatic && uiState.steps == 0L && uiState.sleepHours == 0f) {
+                item {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(ColorPenalty.copy(alpha = 0.1f))
+                            .border(1.dp, ColorPenalty.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Lucide.TriangleAlert, null, tint = ColorPenalty, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Sin reporte para ayer. Tu escudo está debilitado.", style = MaterialTheme.typography.labelSmall, color = ColorPenalty)
+                    }
+                }
+            }
 
             // ── Sección Sincronización ────────────────────────────────────────
             item { SyncModeCard(uiState = uiState, onToggle = viewModel::onToggleAutomaticMode) }
@@ -104,27 +143,26 @@ fun HealthScreen(viewModel: HealthViewModel = koinViewModel()) {
                         onClick = { viewModel.toggleManualDialog(true) },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(56.dp),
+                            .height(80.dp),
                         shape = RoundedCornerShape(14.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.primaryContainer,
                             contentColor = MaterialTheme.colorScheme.onPrimary
                         )
                     ) {
-                        Icon(
-                            Lucide.ClipboardPen,
-                            contentDescription = null,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Text(
-                            "REPORTAR DATOS MANUALMENTE",
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontSize = 13.sp,
-                                letterSpacing = 1.5.sp,
-                                fontWeight = FontWeight.ExtraBold
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            androidx.compose.foundation.Image(
+                                painter = painterResource(id = com.moises.vitalodyssey.R.drawable.ic_action_add),
+                                contentDescription = null,
+                                modifier = Modifier.size(48.dp)
                             )
-                        )
+                            Text(
+                                text = "AÑADIR REPORTE",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 10.sp
+                            )
+                        }
                     }
                 }
             }
@@ -138,7 +176,7 @@ fun HealthScreen(viewModel: HealthViewModel = koinViewModel()) {
         PermissionExplanationDialog(
             title = "Acceso a Health Connect",
             description = "Para potenciar tu escudo automáticamente, necesitamos leer tus pasos y sueño de ayer.",
-            icon = Lucide.Shield,
+            iconRes = com.moises.vitalodyssey.R.drawable.ic_stat_experience,
             steps = listOf(
                 "Pulsa el botón para abrir Health Connect.",
                 "Permite el acceso a Pasos y Sueño.",
@@ -243,163 +281,121 @@ private fun ShieldStatusCard(multiplier: Float) {
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant
         ),
         border = androidx.compose.foundation.BorderStroke(
-            width = 1.5.dp,
-            color = animatedColor.copy(alpha = 0.5f)
+            width = 1.dp,
+            color = animatedColor.copy(alpha = 0.4f)
         )
     ) {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Icono del escudo con halo animado
+            // Icono del escudo con halo pequeño
             Box(contentAlignment = Alignment.Center) {
-                // Halo difuso
                 Box(
                     modifier = Modifier
-                        .size(100.dp)
+                        .size(56.dp)
                         .scale(pulseScale)
                         .clip(CircleShape)
                         .background(
                             Brush.radialGradient(
                                 colors = listOf(
-                                    animatedColor.copy(alpha = 0.25f),
+                                    animatedColor.copy(alpha = 0.2f),
                                     Color.Transparent
                                 )
                             )
                         )
                 )
-                Icon(
-                    Lucide.ShieldCheck,
+                androidx.compose.foundation.Image(
+                    painter = painterResource(id = com.moises.vitalodyssey.R.drawable.ic_stat_defense),
                     contentDescription = null,
                     modifier = Modifier
-                        .size(56.dp)
+                        .size(76.dp)
                         .scale(pulseScale)
-                        .graphicsLayer {
-                            shadowElevation = if (multiplier >= 1.5f) 20f else 0f
-                        },
-                    tint = animatedColor
                 )
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.titleSmall,
+                    color = animatedColor,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1
+                )
+            }
 
-            Text(
-                text = label,
-                style = MaterialTheme.typography.titleMedium,
-                color = animatedColor,
-                letterSpacing = 2.sp
-            )
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            // Chip del multiplicador
+            // Chip pequeño del multiplicador
             Surface(
-                shape = RoundedCornerShape(50),
-                color = animatedColor.copy(alpha = 0.15f),
-                border = androidx.compose.foundation.BorderStroke(1.dp, animatedColor.copy(alpha = 0.6f))
+                shape = RoundedCornerShape(8.dp),
+                color = animatedColor.copy(alpha = 0.1f),
+                border = androidx.compose.foundation.BorderStroke(1.dp, animatedColor.copy(alpha = 0.4f))
             ) {
                 Text(
-                    text = "×${"%.1f".format(multiplier)} Defensa",
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = animatedColor,
-                    letterSpacing = 1.sp
+                    text = "×${"%.1f".format(multiplier)}",
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Black,
+                    color = animatedColor
                 )
             }
         }
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// YesterdayDataCard
-// ─────────────────────────────────────────────────────────────────────────────
 @Composable
-private fun YesterdayDataCard(uiState: HealthUiState) {
+private fun MetricCard(
+    iconRes: Int,
+    value: String,
+    label: String,
+    color: Color,
+    modifier: Modifier = Modifier
+) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier,
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-        border = androidx.compose.foundation.BorderStroke(
-            1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
-        )
+        border = androidx.compose.foundation.BorderStroke(1.dp, color.copy(alpha = 0.2f))
     ) {
-        Column(modifier = Modifier.padding(20.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    Lucide.CalendarClock,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primaryContainer,
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    "Datos del Día Anterior",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-            }
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(90.dp)
+                    .clip(CircleShape)
+                    .background(color.copy(alpha = 0.1f)),
+                contentAlignment = Alignment.Center
             ) {
-                HealthMetricPill(
-                    icon = Lucide.Footprints,
-                    value = "%,d".format(uiState.steps),
-                    label = "Pasos",
-                    color = MaterialTheme.colorScheme.primary
-                )
-                HealthMetricPill(
-                    icon = Lucide.Moon,
-                    value = "${"%.1f".format(uiState.sleepHours)} h",
-                    label = "Sueño",
-                    color = MaterialTheme.colorScheme.tertiary
+                androidx.compose.foundation.Image(
+                    painter = painterResource(id = iconRes)
+                    contentDescription = null,
+                    modifier = Modifier.size(78.dp)
                 )
             }
-
-            if (!uiState.isAutomatic && uiState.steps == 0L && uiState.sleepHours == 0f) {
-                Spacer(modifier = Modifier.height(16.dp))
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(ColorPenalty.copy(alpha = 0.08f))
-                        .border(1.dp, ColorPenalty.copy(alpha = 0.3f), RoundedCornerShape(10.dp))
-                        .padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        Lucide.TriangleAlert,
-                        contentDescription = null,
-                        tint = ColorPenalty,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        "Sin reporte para ayer. Tu escudo está debilitado.",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = ColorPenalty
-                    )
-                }
-            }
+            Text(
+                text = value,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Black,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
@@ -457,15 +453,14 @@ private fun SyncModeCard(
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    Lucide.RefreshCw,
+                androidx.compose.foundation.Image(
+                    painter = painterResource(id = com.moises.vitalodyssey.R.drawable.ic_stat_experience),
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primaryContainer,
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(39.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    "Sincronización",
+                    "Activar Sincronización",
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurface
                 )
@@ -582,11 +577,10 @@ private fun ManualReportDialog(
                         .align(Alignment.CenterHorizontally),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        Lucide.ClipboardPen,
+                    androidx.compose.foundation.Image(
+                        painter = painterResource(id = com.moises.vitalodyssey.R.drawable.ic_action_add),
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primaryContainer,
-                        modifier = Modifier.size(28.dp)
+                        modifier = Modifier.size(48.dp)
                     )
                 }
 

@@ -9,6 +9,8 @@ data class BossEntity(
     val name: String,
     val imageAssetId: String, // Para saber qué imagen de los 6 jefes cargar
     val difficulty: String,
+    val description: String, // Nueva descripción larga
+    val catchPhrase: String,  // Frase corta identificativa
     val maxHp: Int,
     val currentHp: Int,
     val baseAttack: Int,

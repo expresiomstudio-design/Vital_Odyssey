@@ -54,6 +54,7 @@ fun HabitFormScreen(
     }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
             TopAppBar(
                 title = { Text(if (uiState.isEditMode) "Editar Hábito" else "Nuevo Hábito") },

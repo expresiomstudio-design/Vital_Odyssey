@@ -26,6 +26,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -33,6 +34,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.composables.icons.lucide.*
 import com.moises.vitalodyssey.presentation.viewmodels.ProfileUiState
+import com.moises.vitalodyssey.presentation.utils.AvatarUtils
 import com.moises.vitalodyssey.presentation.viewmodels.ProfileViewModel
 import com.moises.vitalodyssey.ui.theme.VitalOdysseyTheme
 import org.koin.androidx.compose.koinViewModel
@@ -84,7 +86,7 @@ fun ProfileScreenContent(
     onUpdateCutoffTime: (String) -> Unit = {}
 ) {
     Box(
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)
     ) {
         AnimatedContent(
             targetState = currentSection,
@@ -128,32 +130,28 @@ fun MainMenuContent(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .statusBarsPadding()
             .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
-        // Header: Avatar, Nombre y Profesión
-        Box(contentAlignment = Alignment.Center) {
-            Surface(
-                modifier = Modifier
-                    .size(160.dp)
-                    .shadow(10.dp, CircleShape),
-                shape = CircleShape,
-                border = BorderStroke(2.dp, MaterialTheme.colorScheme.primary),
-                color = MaterialTheme.colorScheme.surface
-            ) {
-                AsyncImage(
-                    model = "https://picsum.photos/seed/${uiState.playerName}/400",
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.clip(CircleShape)
-                )
-            }
+        // Header: Avatar de cuerpo completo (sin bordes ni tarjeta)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(300.dp) // Avatar imponente
+                .padding(top = 16.dp),
+            contentAlignment = Alignment.BottomCenter
+        ) {
+            androidx.compose.foundation.Image(
+                painter = painterResource(id = AvatarUtils.getPlayerAvatar(uiState.playerClassEnum, uiState.bodyType)),
+                contentDescription = null,
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.fillMaxHeight()
+            )
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         Text(
             text = uiState.playerName,
@@ -169,7 +167,7 @@ fun MainMenuContent(
             color = MaterialTheme.colorScheme.primaryContainer
         )
 
-        Spacer(modifier = Modifier.height(6.dp))
+        Spacer(modifier = Modifier.height(4.dp))
 
         // Barra de Experiencia
         Column(
@@ -219,7 +217,7 @@ fun MainMenuContent(
             )
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
         // Atributos de Combate (Fila de 3)
         Row(
@@ -232,26 +230,26 @@ fun MainMenuContent(
                 modifier = Modifier.weight(1f),
                 label = "ATAQUE",
                 value = uiState.attackStat.toString(),
-                iconPainter = rememberVectorPainter(Lucide.Sword),
+                iconRes = com.moises.vitalodyssey.R.drawable.ic_stat_attack,
                 color = MaterialTheme.colorScheme.primary
             )
             ProfileAttributeCard(
                 modifier = Modifier.weight(1f),
                 label = "DEFENSA",
                 value = uiState.defenseStat.toString(),
-                iconPainter = rememberVectorPainter(Lucide.Shield),
+                iconRes = com.moises.vitalodyssey.R.drawable.ic_stat_defense,
                 color = MaterialTheme.colorScheme.primary
             )
             ProfileAttributeCard(
                 modifier = Modifier.weight(1f),
                 label = "VIDA",
                 value = "${uiState.currentHp}/${uiState.maxHp}",
-                iconPainter = rememberVectorPainter(Lucide.Heart),
+                iconRes = com.moises.vitalodyssey.R.drawable.ic_stat_health,
                 color = MaterialTheme.colorScheme.primary
             )
         }
 
-        Spacer(modifier = Modifier.height(18.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
         // Registros de Odisea
         Card(
@@ -277,7 +275,7 @@ fun MainMenuContent(
             }
         }
 
-        Spacer(modifier = Modifier.height(18.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
         // Celdas de Navegación Estilo iOS
         Column(
@@ -288,13 +286,13 @@ fun MainMenuContent(
                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
         ) {
             ProfileMenuCell(
-                iconPainter = rememberVectorPainter(Lucide.User),
+                iconPainter = painterResource(id = com.moises.vitalodyssey.R.drawable.ic_screen_profile),
                 title = "Gestión de Cuenta",
                 onClick = { onSectionChange(ProfileSection.ACCOUNT) }
             )
             HorizontalDivider(modifier = Modifier.padding(start = 56.dp), thickness = 0.5.dp)
             ProfileMenuCell(
-                iconPainter = rememberVectorPainter(Lucide.Settings),
+                iconPainter = painterResource(id = com.moises.vitalodyssey.R.drawable.ic_screen_config),
                 title = "Ajustes de Odisea",
                 onClick = { onSectionChange(ProfileSection.SETTINGS) }
             )
@@ -319,16 +317,15 @@ fun ProfileMenuCell(
     ) {
         Box(
             modifier = Modifier
-                .size(32.dp)
-                .clip(RoundedCornerShape(8.dp))
+                .size(48.dp)
+                .clip(RoundedCornerShape(12.dp))
                 .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
             contentAlignment = Alignment.Center
         ) {
-            Icon(
+            androidx.compose.foundation.Image(
                 painter = iconPainter,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(40.dp)
             )
         }
         Spacer(modifier = Modifier.width(16.dp))
@@ -395,6 +392,7 @@ fun AccountSectionContent(
     }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
             TopAppBar(
                 title = { Text("GESTIÓN DE CUENTA", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) },
@@ -530,6 +528,7 @@ fun SettingsSectionContent(
     val isExtendedDay = uiState.cutoffTime == "03:00"
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
             TopAppBar(
                 title = { Text("AJUSTES DE ODISEA", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) },
@@ -702,7 +701,7 @@ fun ProfileAttributeCard(
     modifier: Modifier = Modifier,
     label: String,
     value: String,
-    iconPainter: Painter,
+    iconRes: Int,
     color: Color
 ) {
     Column(
@@ -711,7 +710,11 @@ fun ProfileAttributeCard(
             .padding(12.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Icon(iconPainter, null, tint = color, modifier = Modifier.size(20.dp))
+        androidx.compose.foundation.Image(
+            painter = painterResource(id = iconRes),
+            contentDescription = null,
+            modifier = Modifier.size(32.dp)
+        )        
         Spacer(modifier = Modifier.height(6.dp))
         Text(value, style = MaterialTheme.typography.titleMedium, color = color, fontWeight = FontWeight.Bold)
         Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))

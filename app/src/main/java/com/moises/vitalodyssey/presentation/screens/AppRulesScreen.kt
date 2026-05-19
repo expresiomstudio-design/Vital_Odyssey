@@ -22,6 +22,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -54,7 +55,6 @@ fun AppRulesScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .statusBarsPadding()
     ) {
         LazyColumn(
             modifier = Modifier
@@ -79,7 +79,11 @@ fun AppRulesScreen(
                         border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f))
                     ) {
                         Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Lucide.Eye, contentDescription = null, tint = MaterialTheme.colorScheme.primaryContainer)
+                            androidx.compose.foundation.Image(
+                                painter = painterResource(id = com.moises.vitalodyssey.R.drawable.ic_stat_experience),
+                                contentDescription = null,
+                                modifier = Modifier.size(40.dp)
+                            )
                             Spacer(modifier = Modifier.width(16.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text("Activar Foco Arcano", fontWeight = FontWeight.Bold)
@@ -119,7 +123,7 @@ fun AppRulesScreen(
         com.moises.vitalodyssey.presentation.components.PermissionExplanationDialog(
             title = "Acceso de Uso Requerido",
             description = "Para calcular tu Foco Arcano y recargar estamina, necesitamos vigilar a los ladrones de tiempo.",
-            icon = Lucide.Activity,
+            iconRes = com.moises.vitalodyssey.R.drawable.ic_stat_experience,
             steps = listOf(
                 "Pulsa el botón de abajo para ir a Ajustes.",
                 "Busca 'Vital Odyssey' en la lista.",
@@ -267,10 +271,23 @@ private fun EmptyRulesView(onAddClick: () -> Unit) {
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
         )
         Spacer(modifier = Modifier.height(24.dp))
-        Button(onClick = onAddClick) {
-            Icon(Icons.Default.Add, contentDescription = null)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("Añadir mi primera regla")
+        Button(
+            onClick = onAddClick,
+            modifier = Modifier.height(IntrinsicSize.Min)
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                androidx.compose.foundation.Image(
+                    painter = painterResource(id = com.moises.vitalodyssey.R.drawable.ic_action_add),
+                    contentDescription = null,
+                    modifier = Modifier.size(48.dp)
+                )
+                Text(
+                    text = "AÑADIR",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 10.sp
+                )
+            }
         }
     }
 }

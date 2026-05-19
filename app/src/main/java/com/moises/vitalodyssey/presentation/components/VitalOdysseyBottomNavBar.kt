@@ -1,16 +1,29 @@
 package com.moises.vitalodyssey.presentation.components
 
+import androidx.annotation.DrawableRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
-import com.composables.icons.lucide.*
+import com.moises.vitalodyssey.R
+
+// Definimos los destinos de navegación
+sealed class Destination(
+    val route: String,
+    val title: String,
+    @DrawableRes val iconRes: Int
+) {
+    object Habits : Destination("habits", "Hábitos", R.drawable.ic_screen_habits)
+    object Health : Destination("health", "Salud", R.drawable.ic_screen_health)
+    object Dashboard : Destination("dashboard", "Vital Odyssey", R.drawable.logo_vital_odyssey_stacked)
+    object AppRules : Destination("app_rules", "Apps", R.drawable.ic_screen_apps)
+    object Profile : Destination("profile", "Perfil", R.drawable.ic_screen_profile)
+}
 
 @Composable
 fun VitalOdysseyBottomNavBar(
@@ -23,139 +36,59 @@ fun VitalOdysseyBottomNavBar(
             // 1️⃣ Primero el color de fondo → llena hasta el borde físico del dispositivo
             .background(MaterialTheme.colorScheme.surface)
             // 2️⃣ Luego el padding → empuja el CONTENIDO por encima de la nav bar del sistema
-            .navigationBarsPadding()
-            .height(60.dp),
+            .navigationBarsPadding(),
         contentAlignment = Alignment.BottomCenter
     ) {
         NavigationBar(
-            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
-            tonalElevation = 8.dp,
+            containerColor = MaterialTheme.colorScheme.surface,
+            tonalElevation = 0.dp,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(60.dp)
-                .padding(bottom = 4.dp)
+                .height(72.dp) // Altura más equilibrada
+                .padding(bottom = 8.dp) // Subimos el contenido para alejarlo de los botones de Android
         ) {
-            // Ítem 1: Hábitos
-            NavigationBarItem(
-                selected = currentRoute == "habits",
-                onClick = { onNavigate("habits") },
-                icon = { 
-                    Icon(
-                        painter = rememberVectorPainter(Lucide.ScrollText), 
-                        contentDescription = "Hábitos"
-                    ) 
-                },
-                label = { Text("Hábitos", style = MaterialTheme.typography.labelSmall) },
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = MaterialTheme.colorScheme.primary,
-                    selectedTextColor = MaterialTheme.colorScheme.primary,
-                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    indicatorColor = Color.Transparent
-                )
+            val destinations = listOf(
+                Destination.Habits,
+                Destination.Health,
+                Destination.Dashboard,
+                Destination.AppRules,
+                Destination.Profile
             )
 
-            // Ítem 2: Salud
-            NavigationBarItem(
-                selected = currentRoute == "health",
-                onClick = { onNavigate("health") },
-                icon = { 
-                    Icon(
-                        painter = rememberVectorPainter(Lucide.Heart), 
-                        contentDescription = "Salud"
-                    ) 
-                },
-                label = { Text("Salud", style = MaterialTheme.typography.labelSmall) },
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = MaterialTheme.colorScheme.primary,
-                    selectedTextColor = MaterialTheme.colorScheme.primary,
-                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    indicatorColor = Color.Transparent
+            destinations.forEach { destination ->
+                val isCenter = destination is Destination.Dashboard
+                NavigationBarItem(
+                    selected = currentRoute == destination.route,
+                    onClick = { onNavigate(destination.route) },
+                    icon = { 
+                        val iconSize = if (isCenter) 64.dp else 44.dp
+                        Icon(
+                            painter = painterResource(id = destination.iconRes), 
+                            contentDescription = destination.title,
+                            modifier = Modifier.size(iconSize),
+                            tint = Color.Unspecified
+                        ) 
+                    },
+                    label = { 
+                        if (!isCenter) {
+                            Text(
+                                destination.title, 
+                                style = MaterialTheme.typography.labelSmall,
+                                modifier = Modifier.offset(y = (-2).dp)
+                            ) 
+                        }
+                    },
+                    alwaysShowLabel = !isCenter,
+                    colors = NavigationBarItemDefaults.colors(
+                        selectedIconColor = MaterialTheme.colorScheme.primary,
+                        selectedTextColor = MaterialTheme.colorScheme.primary,
+                        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        indicatorColor = Color.Transparent
+                    )
                 )
-            )
-
-            // Ítem 3: Centro Placeholder para FAB
-            NavigationBarItem(
-                selected = false,
-                onClick = { onNavigate("dashboard") },
-                icon = { Spacer(modifier = Modifier.size(24.dp)) },
-                label = { 
-                    Text(
-                        "Combate", 
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color.Transparent 
-                    ) 
-                }
-            )
-
-            // Ítem 4: Apps (Foco Arcano)
-            NavigationBarItem(
-                selected = currentRoute == "app_rules",
-                onClick = { onNavigate("app_rules") },
-                icon = { 
-                    Icon(
-                        painter = rememberVectorPainter(Lucide.Smartphone), 
-                        contentDescription = "Apps"
-                    ) 
-                },
-                label = { Text("Apps", style = MaterialTheme.typography.labelSmall) },
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = MaterialTheme.colorScheme.primary,
-                    selectedTextColor = MaterialTheme.colorScheme.primary,
-                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    indicatorColor = Color.Transparent
-                )
-            )
-
-            // Ítem 5: Perfil
-            NavigationBarItem(
-                selected = currentRoute == "profile",
-                onClick = { onNavigate("profile") },
-                icon = { 
-                    Icon(
-                        painter = rememberVectorPainter(Lucide.User), 
-                        contentDescription = "Perfil"
-                    ) 
-                },
-                label = { Text("Perfil", style = MaterialTheme.typography.labelSmall) },
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = MaterialTheme.colorScheme.primary,
-                    selectedTextColor = MaterialTheme.colorScheme.primary,
-                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    indicatorColor = Color.Transparent
-                )
-            )
+            }
         }
 
-        // Botón central elevado
-        FloatingActionButton(
-            onClick = { onNavigate("dashboard") },
-            shape = CircleShape,
-            containerColor = if (currentRoute == "dashboard") 
-                MaterialTheme.colorScheme.primary 
-            else 
-                MaterialTheme.colorScheme.surfaceVariant,
-            contentColor = if (currentRoute == "dashboard")
-                MaterialTheme.colorScheme.onPrimary
-            else 
-                MaterialTheme.colorScheme.primary,
-            elevation = FloatingActionButtonDefaults.elevation(
-                defaultElevation = 8.dp,
-                pressedElevation = 12.dp
-            ),
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .offset(y = (-10).dp)   // baja levemente para quedar integrado en la barra
-                .size(56.dp)
-        ) {
-            Icon(
-                painter = rememberVectorPainter(Lucide.Swords),
-                contentDescription = "Combate",
-                modifier = Modifier.size(24.dp)
-            )
-        }
     }
 }
