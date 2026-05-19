@@ -380,7 +380,7 @@ private fun MetricCard(
                 contentAlignment = Alignment.Center
             ) {
                 androidx.compose.foundation.Image(
-                    painter = painterResource(id = iconRes)
+                    painter = painterResource(id = iconRes),
                     contentDescription = null,
                     modifier = Modifier.size(78.dp)
                 )

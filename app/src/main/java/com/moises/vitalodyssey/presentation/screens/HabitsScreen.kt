@@ -133,7 +133,7 @@ fun SectionHeader(title: String, onAddClick: () -> Unit) {
         )
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.clickable { onAddClick() 
+            modifier = Modifier.clickable { onAddClick() }
         ) {
             androidx.compose.foundation.Image(
                 painter = painterResource(id = com.moises.vitalodyssey.R.drawable.ic_action_add),
@@ -146,7 +146,7 @@ fun SectionHeader(title: String, onAddClick: () -> Unit) {
                 color = MaterialTheme.colorScheme.primaryContainer,
                 fontWeight = FontWeight.Bold,
                 fontSize = 10.sp
-            
+            )
         }
     }
 }
