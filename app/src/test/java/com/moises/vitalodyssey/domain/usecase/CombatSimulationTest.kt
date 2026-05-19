@@ -62,7 +62,7 @@ class CombatSimulationTest {
         val fakeDefenseProvider = DefenseMultiplierProvider { mockedDefenseMultiplier }
         val calculateBattleTurn = CalculateBattleTurnUseCase(fakeDefenseProvider)
         val fakeBossDao = FakeBossDao()
-        val processBattleResult = ProcessBattleResultUseCase(calculatePlayerStats, fakeBossDao)
+        val processBattleResult = ProcessBattleResultUseCase(calculatePlayerStats, calculateBossStats, fakeBossDao)
 
         // Estado Inicial del Jugador
         var level = 1
@@ -83,12 +83,17 @@ class CombatSimulationTest {
                 val bossAtk = calculateBossStats(level, Difficulty.NORMAL)
                 fakeBossDao.insertBoss(
                     BossEntity(
+                        id = 1,
                         name = "Archidemonio #${bossesDefeated + 1}",
                         imageAssetId = "dummy",
                         difficulty = "NORMAL",
+                        catchPhrase = "...",
+                        description = "...",
                         maxHp = bossMaxHp,
                         currentHp = bossMaxHp,
-                        baseAttack = bossAtk
+                        baseAttack = bossAtk,
+                        isDefeated = false,
+                        lastUpdated = System.currentTimeMillis()
                     )
                 )
             }
@@ -131,7 +136,7 @@ class CombatSimulationTest {
                 presenceStreak = presenceStreak
             )
 
-            val newState = processBattleResult(level, xp, hp, result)
+            val newState = processBattleResult(level, xp, hp, result, bossesDefeated)
             
             level = newState.newLevel
             xp = newState.newXp
