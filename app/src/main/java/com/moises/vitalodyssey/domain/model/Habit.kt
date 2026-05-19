@@ -3,6 +3,8 @@ package com.moises.vitalodyssey.domain.model
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
+import com.google.firebase.firestore.PropertyName
+
 // Definición de los Enums que darán flexibilidad a tus hábitos
 enum class HabitType { BOOLEAN, MEASURABLE }
 enum class TargetType { AT_LEAST, AT_MOST }
@@ -14,15 +16,18 @@ data class Habit(
     @PrimaryKey(autoGenerate = true)
     val id: Int = 0,
     val firestoreId: String = "",
-    val name: String,
+    val name: String = "",
     val note: String = "",
 
     // ROL DEL HÁBITO (Ataque o Curación)
     val role: HabitRole = HabitRole.OFFENSIVE, // Por defecto ataca
 
     // TIPO DE HÁBITO
-    val type: HabitType,
-    val isCumulative: Boolean = false,
+    val type: HabitType = HabitType.BOOLEAN,
+    
+    @get:PropertyName("isCumulative")
+    @set:PropertyName("isCumulative")
+    var isCumulative: Boolean = false,
 
     // PROPIEDADES MEDIBLES (Solo se usan si type == MEASURABLE)
     val unit: String? = null,     // Ej: "Km", "Minutos", "Vasos"
@@ -33,11 +38,19 @@ data class Habit(
     // FRECUENCIA Y ESTADO
     val frequencyType: String = "DAILY", // DAILY, WEEKLY, MONTHLY, INTERVAL
     val frequencyTarget: Int = 1,        // Ej: 2 veces, o cada 3 días
-    val isCompleted: Boolean = false,
+    
+    @get:PropertyName("isCompleted")
+    @set:PropertyName("isCompleted")
+    var isCompleted: Boolean = false,
 
     // RACHAS Y PUNTUACIÓN
     val currentStreak: Int = 0,
     val score: Float = 0f,
     val startDate: String = "", // Fecha de creación (YYYY-MM-DD)
-    val isDeleted: Boolean = false
+    
+    @get:PropertyName("isDeleted")
+    @set:PropertyName("isDeleted")
+    var isDeleted: Boolean = false,
+    
+    var lastUpdated: Long = System.currentTimeMillis()
 )

@@ -168,6 +168,9 @@ class AppRuleFormViewModel(
             )
             saveAppRuleUseCase(rule)
             _uiState.update { it.copy(isSaved = true) }
+            kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                userRepository.scheduleCloudSync()
+            }
         }
     }
 
@@ -184,6 +187,9 @@ class AppRuleFormViewModel(
                 )
                 deleteAppRuleUseCase(rule)
                 _uiState.update { it.copy(isSaved = true) }
+                kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                    userRepository.scheduleCloudSync()
+                }
             }
         }
     }

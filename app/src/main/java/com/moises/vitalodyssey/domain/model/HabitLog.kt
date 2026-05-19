@@ -20,9 +20,9 @@ import androidx.room.PrimaryKey
 data class HabitLog(
     @PrimaryKey(autoGenerate = true)
     val id: Int = 0,
-    val habitId: Int,
-    val date: String, // Formato YYYY-MM-DD
-    val state: HabitState,
+    val habitId: Int = 0,         // Default necesario para Firestore
+    val date: String = "",        // Default necesario para Firestore
+    val state: HabitState = HabitState.UNRECORDED, // Default necesario para Firestore
     val measuredValue: Float? = null,
     val currentScore: Float = 0f
 )

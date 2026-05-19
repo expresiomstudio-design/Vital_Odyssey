@@ -48,12 +48,17 @@ class MainViewModel(
                     // Si falla la red, confiaremos en lo que haya en Room (offline-first)
                 }
 
-                // Ahora consultamos el perfil (que debería estar actualizado por fetchUserFromCloud)
-                val profile = userRepository.getUserProfileOnce()
-                
-                if (profile != null && profile.hasCompletedOnboarding) {
-                    _startDestination.value = "dashboard"
-                } else {
+                try {
+                    // Ahora consultamos el perfil (que debería estar actualizado por fetchUserFromCloud)
+                    val profile = userRepository.getUserProfileOnce()
+                    
+                    if (profile != null && profile.hasCompletedOnboarding) {
+                        _startDestination.value = "dashboard"
+                    } else {
+                        _startDestination.value = "onboarding"
+                    }
+                } catch (e: Exception) {
+                    // Si Room falla (ej. error de migración), mandamos a onboarding o intentamos recuperarnos
                     _startDestination.value = "onboarding"
                 }
             }

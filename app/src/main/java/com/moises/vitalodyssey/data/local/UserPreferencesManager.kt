@@ -55,6 +55,9 @@ class UserPreferencesManager(private val context: Context) {
         val LAST_MANUAL_STEPS = longPreferencesKey("last_manual_steps")
         val LAST_MANUAL_SLEEP = floatPreferencesKey("last_manual_sleep")
         val LAST_MANUAL_REPORT_DATE = stringPreferencesKey("last_manual_report_date")
+
+        // Cloud Sync
+        val LAST_CLOUD_SYNC_TIME = longPreferencesKey("last_cloud_sync_time")
     }
 
     val userPrefsFlow: Flow<UserPrefs> = context.dataStore.data
@@ -130,6 +133,10 @@ class UserPreferencesManager(private val context: Context) {
         .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
         .map { it[PreferencesKeys.LAST_MANUAL_REPORT_DATE] ?: "" }
 
+    val lastCloudSyncTimeFlow: Flow<Long> = context.dataStore.data
+        .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
+        .map { it[PreferencesKeys.LAST_CLOUD_SYNC_TIME] ?: 0L }
+
     // ── Suspend update functions ──────────────────────────────────────────────
 
     suspend fun setHealthConnectEnabled(enabled: Boolean) {
@@ -150,6 +157,12 @@ class UserPreferencesManager(private val context: Context) {
             preferences[PreferencesKeys.LAST_MANUAL_STEPS] = steps
             preferences[PreferencesKeys.LAST_MANUAL_SLEEP] = sleep
             preferences[PreferencesKeys.LAST_MANUAL_REPORT_DATE] = date
+        }
+    }
+
+    suspend fun updateLastCloudSyncTime(time: Long) {
+        context.dataStore.edit { preferences ->
+            preferences[PreferencesKeys.LAST_CLOUD_SYNC_TIME] = time
         }
     }
 

@@ -31,28 +31,41 @@ class HabitsViewModel(
 
     private val today = LocalDate.now().toString()
 
-    val uiState: StateFlow<HabitsUiState> = habitDao.getAllHabits().flatMapLatest { habits ->
-        val flows = habits.map { habit ->
-            flow {
-                val log = habitDao.getLogForDate(habit.id, today)
-                emit(HabitWithLog(habit, log))
+    // Señal para forzar un refresco de los datos
+    private val _refreshTrigger = MutableSharedFlow<Unit>(replay = 1).apply { tryEmit(Unit) }
+
+    val uiState: StateFlow<HabitsUiState> = _refreshTrigger
+        .flatMapLatest {
+            habitDao.getAllHabits()
+        }
+        .flatMapLatest { habits ->
+            val flows = habits.map { habit ->
+                flow {
+                    val log = habitDao.getLogForDate(habit.id, today)
+                    emit(HabitWithLog(habit, log))
+                }
+            }
+            if (flows.isEmpty()) flowOf(HabitsUiState())
+            else combine(flows) { habitsWithLogs ->
+                val list = habitsWithLogs.toList()
+                HabitsUiState(
+                    habitsWithLogs = list,
+                    offensiveCount = list.count { it.habit.role == HabitRole.OFFENSIVE },
+                    defensiveCount = list.count { it.habit.role == HabitRole.DEFENSIVE }
+                )
             }
         }
-        if (flows.isEmpty()) flowOf(HabitsUiState())
-        else combine(flows) { habitsWithLogs ->
-            val list = habitsWithLogs.toList()
-            HabitsUiState(
-                habitsWithLogs = list,
-                offensiveCount = list.count { it.habit.role == HabitRole.OFFENSIVE },
-                defensiveCount = list.count { it.habit.role == HabitRole.DEFENSIVE }
-            )
-        }
-    }.flowOn(Dispatchers.Default)
-    .stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
-        initialValue = HabitsUiState()
-    )
+        .flowOn(Dispatchers.Default)
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.Eagerly,
+            initialValue = HabitsUiState()
+        )
+
+    /** Fuerza un refresco completo de la lista desde Room */
+    fun refresh() {
+        _refreshTrigger.tryEmit(Unit)
+    }
 
     fun saveLogForToday(habit: Habit, state: HabitState, value: Float?) {
         viewModelScope.launch {

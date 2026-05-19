@@ -6,6 +6,7 @@ import com.moises.vitalodyssey.data.local.AppRuleDao
 import com.moises.vitalodyssey.domain.model.AppRuleWithUsage
 import com.moises.vitalodyssey.domain.usecase.apprules.GetTrackedAppsUsageUseCase
 import com.moises.vitalodyssey.domain.usecase.apprules.SaveAppRuleUseCase
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -29,13 +30,25 @@ class AppRulesViewModel(
     private val _uiState = MutableStateFlow(AppRulesUiState())
     val uiState: StateFlow<AppRulesUiState> = _uiState.asStateFlow()
 
+    private var collectionJob: Job? = null
+
     init {
-        viewModelScope.launch {
+        startCollecting()
+        checkPermission()
+    }
+
+    private fun startCollecting() {
+        collectionJob?.cancel()
+        collectionJob = viewModelScope.launch {
             getTrackedAppsUsageUseCase().collect { rulesWithUsage ->
                 _uiState.update { it.copy(rules = rulesWithUsage, isLoading = false) }
             }
         }
-        checkPermission()
+    }
+
+    /** Fuerza un refresco completo de la lista desde Room */
+    fun refresh() {
+        startCollecting()
     }
 
     fun checkPermission() {
@@ -48,7 +61,10 @@ class AppRulesViewModel(
     fun toggleRuleState(ruleId: Int, isEnabled: Boolean) {
         viewModelScope.launch {
             appRuleDao.getRuleById(ruleId)?.let { entity ->
-                val updatedRule = entity.toDomain().copy(isEnabled = isEnabled)
+                val updatedRule = entity.toDomain().copy(
+                    isEnabled = isEnabled,
+                    lastUpdated = System.currentTimeMillis()
+                )
                 saveAppRuleUseCase(updatedRule)
             }
         }

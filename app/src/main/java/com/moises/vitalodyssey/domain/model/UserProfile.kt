@@ -16,5 +16,6 @@ data class UserProfile(
     val cutoffTime: String,
     val difficulty: String,
     val hasCompletedOnboarding: Boolean,
-    val startOfWeek: String = "MONDAY"
+    val startOfWeek: String = "MONDAY",
+    val lastUpdated: Long = System.currentTimeMillis()
 )

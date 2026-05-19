@@ -19,6 +19,7 @@ data class AuthUiState(
 
 class AuthViewModel(
     private val authRepository: AuthRepository,
+    private val userRepository: com.moises.vitalodyssey.domain.repository.UserRepository,
     private val userPrefs: UserPreferencesManager
 ) : ViewModel() {
 
@@ -61,6 +62,7 @@ class AuthViewModel(
 
     private suspend fun handleAuthResult(result: com.moises.vitalodyssey.domain.model.AuthResult) {
         if (result.isSuccess) {
+            userRepository.syncDatabasesOnLogin()
             userPrefs.updateAuthStatus(true)
             _uiState.update { it.copy(isLoading = false, loginSuccess = true) }
         } else {

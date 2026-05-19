@@ -23,7 +23,8 @@ data class UserEntity(
     val cutoffTime: String = "00:00",
     val difficulty: String = "NORMAL",
     val hasCompletedOnboarding: Boolean = false,
-    val startOfWeek: String = "MONDAY"
+    val startOfWeek: String = "MONDAY",
+    val lastUpdated: Long = System.currentTimeMillis()
 ) {
     fun toDomain() = UserProfile(
         uid = uid,
@@ -41,7 +42,8 @@ data class UserEntity(
         cutoffTime = cutoffTime,
         difficulty = difficulty,
         hasCompletedOnboarding = hasCompletedOnboarding,
-        startOfWeek = startOfWeek
+        startOfWeek = startOfWeek,
+        lastUpdated = lastUpdated
     )
 
     companion object {
@@ -61,7 +63,8 @@ data class UserEntity(
             cutoffTime = profile.cutoffTime,
             difficulty = profile.difficulty,
             hasCompletedOnboarding = profile.hasCompletedOnboarding,
-            startOfWeek = profile.startOfWeek
+            startOfWeek = profile.startOfWeek,
+            lastUpdated = profile.lastUpdated
         )
     }
 }

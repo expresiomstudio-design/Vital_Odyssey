@@ -124,8 +124,11 @@ class HabitFormViewModel(
             // Forzar recálculo inicial o tras edición de meta
             recalculateHabitScoresUseCase(finalId)
             
-            userRepository.syncHabitsToCloud()
             uiState = uiState.copy(isSaved = true)
+            // Lanza la sincronización sin bloquear la actualización de la UI
+            kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                userRepository.scheduleCloudSync()
+            }
         }
     }
 
@@ -135,8 +138,10 @@ class HabitFormViewModel(
             val habit = habitDao.getHabitById(uiState.id)
             habit?.let {
                 habitDao.deleteHabit(it)
-                userRepository.syncHabitsToCloud()
                 uiState = uiState.copy(isSaved = true)
+                kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                    userRepository.scheduleCloudSync()
+                }
             }
         }
     }

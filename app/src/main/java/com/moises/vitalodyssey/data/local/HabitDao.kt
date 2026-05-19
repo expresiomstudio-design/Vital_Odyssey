@@ -12,6 +12,9 @@ interface HabitDao {
     @Query("SELECT * FROM habits_table WHERE isDeleted = 0")
     fun getAllHabits(): Flow<List<Habit>>
 
+    @Query("SELECT * FROM habits_table WHERE isDeleted = 0")
+    suspend fun getAllHabitsOnce(): List<Habit>
+
     @Query("SELECT * FROM habits_table WHERE id = :id")
     suspend fun getHabitById(id: Int): Habit?
 
@@ -56,4 +59,7 @@ interface HabitDao {
 
     @Query("SELECT * FROM habit_logs WHERE habitId = :habitId ORDER BY date DESC LIMIT 1")
     suspend fun getNewestLog(habitId: Int): HabitLog?
+
+    @Query("SELECT * FROM habit_logs")
+    suspend fun getAllLogsOnce(): List<HabitLog>
 }

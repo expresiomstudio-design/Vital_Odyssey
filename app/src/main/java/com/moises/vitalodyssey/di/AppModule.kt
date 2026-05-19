@@ -31,8 +31,8 @@ val appModule = module {
     // 0. Firebase & Remote
     single { FirebaseAuth.getInstance() }
     single { FirebaseFirestore.getInstance() }
-    single<AuthRepository> { AuthRepositoryImpl(get()) }
-    single<UserRepository> { UserRepositoryImpl(get(), get(), get(), get(), get()) }
+    single<AuthRepository> { AuthRepositoryImpl(get(), get()) }
+    single<UserRepository> { UserRepositoryImpl(get(), get(), get(), androidContext(), get()) }
     single<AppUsageRepository> { AppUsageRepositoryImpl(androidContext()) }
     single<HealthRepository> { com.moises.vitalodyssey.data.device.HealthRepositoryImpl(androidContext()) }
 
@@ -40,26 +40,15 @@ val appModule = module {
     single { UserPreferencesManager(androidContext()) }
 
     // 2. Base de Datos Local
-    single {
-        Room.databaseBuilder(
-            androidContext(),
-            AppDatabase::class.java,
-            "vital_odyssey_db"
-        )
-            .addMigrations(
-                AppDatabase.MIGRATION_3_4,
-                AppDatabase.MIGRATION_4_5,
-                AppDatabase.MIGRATION_5_6
-            )
-            .fallbackToDestructiveMigration()
-            .build()
-    }
+    single { com.moises.vitalodyssey.data.local.DatabaseManager(androidContext(), get()) }
+
+    single { get<com.moises.vitalodyssey.data.local.DatabaseManager>().getDatabaseSync() }
 
     // 3. DAOs
-    single { get<AppDatabase>().habitDao() }
-    single { get<AppDatabase>().userDao() }
-    single { get<AppDatabase>().appRuleDao() }
-    single { get<AppDatabase>().bossDao() }
+    factory { get<com.moises.vitalodyssey.data.local.DatabaseManager>().getDatabaseSync().habitDao() }
+    factory { get<com.moises.vitalodyssey.data.local.DatabaseManager>().getDatabaseSync().userDao() }
+    factory { get<com.moises.vitalodyssey.data.local.DatabaseManager>().getDatabaseSync().appRuleDao() }
+    factory { get<com.moises.vitalodyssey.data.local.DatabaseManager>().getDatabaseSync().bossDao() }
 
     // 4. Casos de Uso
     factory { CalculatePlayerStatsUseCase() }
@@ -138,6 +127,7 @@ val appModule = module {
     viewModel {
         AuthViewModel(
             authRepository = get(),
+            userRepository = get(),
             userPrefs = get()
         )
     }

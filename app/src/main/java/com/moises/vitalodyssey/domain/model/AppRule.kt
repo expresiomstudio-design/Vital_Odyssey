@@ -9,5 +9,6 @@ data class AppRule(
     val startTime: String? = null,
     val endTime: String? = null,
     val activeDays: List<Int>,
-    val isEnabled: Boolean = true
+    val isEnabled: Boolean = true,
+    val lastUpdated: Long = System.currentTimeMillis()
 )

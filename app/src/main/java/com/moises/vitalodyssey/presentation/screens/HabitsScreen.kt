@@ -48,6 +48,11 @@ fun HabitsScreen(
     val uiState by viewModel.uiState.collectAsState()
     var selectedHabitForLog by remember { mutableStateOf<Habit?>(null) }
 
+    // Refrescar datos cada vez que esta pantalla entra en composición
+    LaunchedEffect(Unit) {
+        viewModel.refresh()
+    }
+
     HabitsScreenContent(
         uiState = uiState,
         onHabitLogClick = { selectedHabitForLog = it },

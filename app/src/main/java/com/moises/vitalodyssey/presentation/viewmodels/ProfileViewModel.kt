@@ -32,7 +32,9 @@ data class ProfileUiState(
     val showDeleteSuccess: Boolean = false,
     val deleteProgress: Float = 0f,
     val bodyType: com.moises.vitalodyssey.domain.model.BodyType? = null,
-    val playerClassEnum: com.moises.vitalodyssey.domain.model.PlayerClass? = null
+    val playerClassEnum: com.moises.vitalodyssey.domain.model.PlayerClass? = null,
+    val requiresReauth: Boolean = false,
+    val reauthError: String? = null
 )
 
 class ProfileViewModel(
@@ -45,14 +47,21 @@ class ProfileViewModel(
     private val _showDeleteSuccess = MutableStateFlow(false)
     private val _deleteProgress = MutableStateFlow(0f)
     private val _isSaving = MutableStateFlow(false)
+    private val _requiresReauth = MutableStateFlow(false)
+    private val _reauthError = MutableStateFlow<String?>(null)
 
     val uiState: StateFlow<ProfileUiState> = combine(
         userRepository.getUserProfile(),
-        _isLoggedOut,
-        _showDeleteSuccess,
-        _deleteProgress,
-        _isSaving
-    ) { profile, loggedOut, success, progress, saving ->
+        combine(_isLoggedOut, _showDeleteSuccess, _deleteProgress, _isSaving) { a, b, c, d -> arrayOf(a, b, c, d) },
+        combine(_requiresReauth, _reauthError) { reauth, err -> Pair(reauth, err) }
+    ) { profile, flags1, flags2 ->
+        val loggedOut = flags1[0] as Boolean
+        val success = flags1[1] as Boolean
+        val progress = flags1[2] as Float
+        val saving = flags1[3] as Boolean
+        val reauth = flags2.first
+        val reauthErr = flags2.second
+
         if (profile == null && !success) {
             ProfileUiState(isLoggedOut = loggedOut)
         } else {
@@ -81,7 +90,9 @@ class ProfileViewModel(
                 showDeleteSuccess = success,
                 deleteProgress = progress,
                 bodyType = profile?.bodyType,
-                playerClassEnum = profile?.playerClass
+                playerClassEnum = profile?.playerClass,
+                requiresReauth = reauth,
+                reauthError = reauthErr
             )
         }
     }.stateIn(
@@ -92,8 +103,19 @@ class ProfileViewModel(
 
     fun logout() {
         viewModelScope.launch {
-            authRepository.logout()
-            _isLoggedOut.value = true
+            _isSaving.value = true
+            try {
+                // CRÍTICO: Subir TODOS los datos a la nube antes de cerrar sesión
+                userRepository.performFullCloudSync()
+            } catch (e: Exception) {
+                // Si falla la sincronización (sin red, etc.), igual cerramos sesión
+                // pero los datos podrían no haberse guardado
+                android.util.Log.e("ProfileViewModel", "Sync before logout failed: ${e.message}")
+            } finally {
+                authRepository.logout()
+                _isSaving.value = false
+                _isLoggedOut.value = true
+            }
         }
     }
 
@@ -141,10 +163,36 @@ class ProfileViewModel(
                     _deleteProgress.value = i.toFloat() / steps.toFloat()
                 }
                 _isLoggedOut.value = true
+            } catch (e: FirebaseAuthRecentLoginRequiredException) {
+                _requiresReauth.value = true
+                _reauthError.value = null
             } catch (e: Exception) {
                 // Manejo de errores: Si falla por seguridad o sesión expirada, 
                 // al menos forzamos el logout para que el usuario no se quede en un limbo
                 _isLoggedOut.value = true
+            }
+        }
+    }
+
+    fun dismissReauthDialog() {
+        _requiresReauth.value = false
+        _reauthError.value = null
+    }
+
+    fun reauthenticateAndDelete(passwordOrToken: String, isGoogle: Boolean) {
+        viewModelScope.launch {
+            _reauthError.value = null
+            val result = if (isGoogle) {
+                authRepository.reauthenticateWithGoogle(passwordOrToken)
+            } else {
+                authRepository.reauthenticateWithEmail(passwordOrToken)
+            }
+
+            if (result.isSuccess) {
+                _requiresReauth.value = false
+                deleteAccount() // Volvemos a intentar el borrado
+            } else {
+                _reauthError.value = result.errorMessage ?: "Error al reautenticar"
             }
         }
     }

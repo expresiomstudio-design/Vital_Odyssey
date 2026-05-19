@@ -12,4 +12,9 @@ interface UserRepository {
     suspend fun deleteUserAccount()
     suspend fun syncHabitsToCloud()
     suspend fun fetchHabitsFromCloud()
+    suspend fun syncDatabasesOnLogin()
+    
+    // Background Sync
+    suspend fun scheduleCloudSync()
+    suspend fun performFullCloudSync()
 }

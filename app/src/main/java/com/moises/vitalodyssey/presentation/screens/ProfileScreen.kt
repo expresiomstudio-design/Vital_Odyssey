@@ -69,7 +69,9 @@ fun ProfileScreen(
         onDeleteAccount = { viewModel.deleteAccount() },
         onUpdateName = { viewModel.updateName(it) },
         onUpdateStartOfWeek = { viewModel.updateStartOfWeek(it) },
-        onUpdateCutoffTime = { viewModel.updateCutoffTime(it) }
+        onUpdateCutoffTime = { viewModel.updateCutoffTime(it) },
+        onReauthenticate = { password, isGoogle -> viewModel.reauthenticateAndDelete(password, isGoogle) },
+        onDismissReauth = { viewModel.dismissReauthDialog() }
     )
 }
 
@@ -83,7 +85,9 @@ fun ProfileScreenContent(
     onDeleteAccount: () -> Unit = {},
     onUpdateName: (String) -> Unit = {},
     onUpdateStartOfWeek: (String) -> Unit = {},
-    onUpdateCutoffTime: (String) -> Unit = {}
+    onUpdateCutoffTime: (String) -> Unit = {},
+    onReauthenticate: (String, Boolean) -> Unit = { _, _ -> },
+    onDismissReauth: () -> Unit = {}
 ) {
     Box(
         modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)
@@ -102,7 +106,9 @@ fun ProfileScreenContent(
                     onLogout = onLogout,
                     onDeleteAccount = onDeleteAccount,
                     onUpdateName = onUpdateName,
-                    onBack = { onSectionChange(ProfileSection.MAIN_MENU) }
+                    onBack = { onSectionChange(ProfileSection.MAIN_MENU) },
+                    onReauthenticate = onReauthenticate,
+                    onDismissReauth = onDismissReauth
                 )
                 ProfileSection.SETTINGS -> SettingsSectionContent(
                     uiState = uiState,
@@ -350,10 +356,13 @@ fun AccountSectionContent(
     onLogout: () -> Unit,
     onDeleteAccount: () -> Unit,
     onUpdateName: (String) -> Unit = {},
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onReauthenticate: (String, Boolean) -> Unit = { _, _ -> },
+    onDismissReauth: () -> Unit = {}
 ) {
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
+    var passwordText by remember { mutableStateOf("") }
     var nameText by remember(uiState.playerName) { mutableStateOf(uiState.playerName) }
     val isGoogleUser = uiState.loginProvider == "google.com"
     val hasNameChanged = nameText != uiState.playerName && nameText.isNotBlank()
@@ -387,6 +396,43 @@ fun AccountSectionContent(
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteDialog = false }) { Text("CANCELAR") }
+            }
+        )
+    }
+
+    if (uiState.requiresReauth) {
+        AlertDialog(
+            onDismissRequest = { onDismissReauth() },
+            title = { Text("Reautenticación Requerida") },
+            text = {
+                Column {
+                    Text("Por seguridad, debes volver a ingresar tu contraseña para borrar la cuenta definitivamente.")
+                    Spacer(modifier = Modifier.height(16.dp))
+                    if (isGoogleUser) {
+                        Text("Al ser un usuario de Google, por favor, cierra sesión y vuelve a entrar usando el botón de Google, luego intenta borrar la cuenta nuevamente.")
+                    } else {
+                        OutlinedTextField(
+                            value = passwordText,
+                            onValueChange = { passwordText = it },
+                            label = { Text("Contraseña actual") },
+                            isError = uiState.reauthError != null,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        if (uiState.reauthError != null) {
+                            Text(uiState.reauthError, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                if (!isGoogleUser) {
+                    TextButton(onClick = { onReauthenticate(passwordText, false) }) {
+                        Text("CONFIRMAR")
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { onDismissReauth() }) { Text("CANCELAR") }
             }
         )
     }
